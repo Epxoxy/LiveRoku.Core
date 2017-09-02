@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Core", "LiveRoku.Core\LiveRoku.Core.csproj", "{6F49E205-8FAB-48DA-B237-7346877460AD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Core.Test", "LiveRoku.Core.Test\LiveRoku.Core.Test.csproj", "{C9454101-1F87-4FD7-BA2E-D7394C4DC377}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6F49E205-8FAB-48DA-B237-7346877460AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F49E205-8FAB-48DA-B237-7346877460AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F49E205-8FAB-48DA-B237-7346877460AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F49E205-8FAB-48DA-B237-7346877460AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,32 @@
+﻿//注：目前xml里存在 server 和 dm_server ，分别是不同的域名
+//两个域名指向的服务器应该是相同的，测试 788 2243 均开放
+//猜测应该是为了一些兼容。所有弹幕相关参数都有带上“dm_”前缀的趋势
+<uid></uid>
+<uname></uname>
+<login></login>
+<isadmin></isadmin>
+<time>1503511561</time>
+<rank></rank>
+<level></level>
+<state>LIVE</state>
+<chatid>1517443</chatid>
+<server>livecmt-2.bilibili.com</server>
+<sheid_user></sheid_user>
+<block_time>0</block_time>
+<block_type>0</block_type>
+<room_shield>1</room_shield>
+<level_sheid>0</level_sheid>
+<user_sheid_keyword></user_sheid_keyword>
+<room_silent_type></room_silent_type>
+<room_silent_level>0</room_silent_level>
+<room_silent_second>0</room_silent_second>
+<user_silent_level></user_silent_level>
+<user_silent_rank></user_silent_rank>
+<user_silent_verify></user_silent_verify>
+<dm_ws_port>2244</dm_ws_port>
+<dm_wss_port>2245</dm_wss_port>
+<dm_port>2243</dm_port>
+<dm_server>broadcastlv.chat.bilibili.com</dm_server>
+<need_authority>0</need_authority>
+<authority_range>æ—¥æœ¬</authority_range>
+<forbidden>0</forbidden>
