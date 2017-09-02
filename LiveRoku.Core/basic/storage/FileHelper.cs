@@ -19,7 +19,7 @@ namespace LiveRoku.Core.Storage {
                     }
                 }
             } catch (System.Exception e) {
-                e.printStackTrace();
+                e.printStackTrace ();
             }
         }
         public static string readTxt (string path) {
@@ -37,7 +37,7 @@ namespace LiveRoku.Core.Storage {
                     }
                 }
             } catch (System.Exception e) {
-                e.printStackTrace();
+                e.printStackTrace ();
             }
             return string.Empty;
         }

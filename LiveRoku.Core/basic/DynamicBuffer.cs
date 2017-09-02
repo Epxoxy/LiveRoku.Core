@@ -44,8 +44,8 @@ namespace LiveRoku.Core {
             }
         }
 
-        private void fixSize(int count){
-            if(getReserveSize () >= count){
+        private void fixSize (int count) {
+            if (getReserveSize () >= count) {
                 //
             }
         }
@@ -96,6 +96,5 @@ namespace LiveRoku.Core {
             }
         }
     }
-
 
 }

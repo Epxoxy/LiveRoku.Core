@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
-using System;
 using Newtonsoft.Json.Linq;
 
 namespace LiveRoku.Core.Storage {
@@ -26,7 +26,7 @@ namespace LiveRoku.Core.Storage {
             }
             return helper;
         }
-        
+
         public bool tryGet (string name, out object obj) {
             obj = null;
             if (valueDict != null && valueDict.ContainsKey (name)) {
@@ -36,14 +36,13 @@ namespace LiveRoku.Core.Storage {
                 return false;
             return true;
         }
-        
-        public bool tryGet<T>(string name, out T obj){
-            obj = default(T);
+
+        public bool tryGet<T> (string name, out T obj) {
+            obj = default (T);
             object exist = null;
-            if(tryGet(name, out exist))
-            {
-                if (exist.GetType() == typeof(T)){
-                    obj = (T)exist;
+            if (tryGet (name, out exist)) {
+                if (exist.GetType () == typeof (T)) {
+                    obj = (T) exist;
                     return true;
                 }
             }
@@ -62,79 +61,76 @@ namespace LiveRoku.Core.Storage {
             return false;
         }
 
-        public bool save (){
+        public bool save () {
             try {
-                List<Wrapper> wrappers = new List<Wrapper>(valueDict.Count);
-                foreach (var pair in valueDict){
+                List<Wrapper> wrappers = new List<Wrapper> (valueDict.Count);
+                foreach (var pair in valueDict) {
                     if (pair.Value == null) continue;
-                    if (unknowDict.ContainsKey(pair.Key))
-                        unknowDict.Remove(pair.Key);
-                    wrappers.Add(new Wrapper(pair.Key, pair.Value));
+                    if (unknowDict.ContainsKey (pair.Key))
+                        unknowDict.Remove (pair.Key);
+                    wrappers.Add (new Wrapper (pair.Key, pair.Value));
                 }
-                foreach (var pair in unknowDict){
-                    wrappers.Add(pair.Value);
+                foreach (var pair in unknowDict) {
+                    wrappers.Add (pair.Value);
                 }
                 if (wrappers.Count == 0) return true;
-                FileHelper.writeTxt(serialize(wrappers.ToArray()), txtpath);
+                FileHelper.writeTxt (serialize (wrappers.ToArray ()), txtpath);
                 return true;
-            }catch (Exception e){
-                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace ();
                 return false;
             }
         }
 
         private void initialize () {
             string txt = FileHelper.readTxt (txtpath);
-            valueDict = new Dictionary<string, object>();
-            unknowDict = new Dictionary<string, Wrapper>();
+            valueDict = new Dictionary<string, object> ();
+            unknowDict = new Dictionary<string, Wrapper> ();
             if (!string.IsNullOrEmpty (txt)) {
                 Wrapper[] wrappers = null;
-                try{
-                    wrappers = deserialize<Wrapper[]>(txt);
-                }catch(Exception e){
-                    e.printStackTrace();
+                try {
+                    wrappers = deserialize<Wrapper[]> (txt);
+                } catch (Exception e) {
+                    e.printStackTrace ();
                 }
-                if(wrappers != null && wrappers.Length > 0){
-                    foreach (var wrapper in wrappers){
+                if (wrappers != null && wrappers.Length > 0) {
+                    foreach (var wrapper in wrappers) {
                         var jObject = wrapper.Value as JObject;
                         if (jObject == null) continue;
                         object entity = null;
-                        try{
-                            var type = Type.GetType(wrapper.TypeName, true, true);
-                            if(type != null)
-                                entity = jObject.ToObject(type);
-                        }catch (Exception e) {
-                            e.printStackTrace();
+                        try {
+                            var type = Type.GetType (wrapper.TypeName, true, true);
+                            if (type != null)
+                                entity = jObject.ToObject (type);
+                        } catch (Exception e) {
+                            e.printStackTrace ();
                         }
-                        if(entity == null){
-                            unknowDict.Add(wrapper.Key, wrapper);
-                        }else{
-                            valueDict.Add(wrapper.Key, entity);
+                        if (entity == null) {
+                            unknowDict.Add (wrapper.Key, wrapper);
+                        } else {
+                            valueDict.Add (wrapper.Key, entity);
                         }
                     }
                 }
             }
         }
 
-        private string serialize(object o)
-        {
-            return JsonConvert.SerializeObject(o, Formatting.Indented);//, serializerSettings());
+        private string serialize (object o) {
+            return JsonConvert.SerializeObject (o, Formatting.Indented); //, serializerSettings());
         }
-        private T deserialize<T>(string json)
-        {
-            return JsonConvert.DeserializeObject<T>(json);
+        private T deserialize<T> (string json) {
+            return JsonConvert.DeserializeObject<T> (json);
         }
 
-        class Wrapper{
+        class Wrapper {
             public string Key { get; set; }
             public string TypeName { get; set; }
             public JObject Value { get; set; }
-            public Wrapper() { }
-            public Wrapper(string key, object value)
-            {
+            public Wrapper () { }
+            public Wrapper (string key, object value) {
                 this.Key = key;
-                this.TypeName = value.GetType().AssemblyQualifiedName;
-                this.Value = JObject.FromObject(value);
+                this.TypeName = value.GetType ().AssemblyQualifiedName;
+                this.Value = JObject.FromObject (value);
             }
         }
         /*private JsonSerializerSettings serializerSettings () {

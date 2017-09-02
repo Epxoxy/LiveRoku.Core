@@ -12,7 +12,7 @@ namespace LiveRoku.Core {
         public INodeFlow Resolvers => ctx;
         private HeadNodeContextLite ctx;
 
-        public NetResolverLite() {
+        public NetResolverLite () {
             ctx = new HeadNodeContextLite (this);
         }
 

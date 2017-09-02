@@ -18,15 +18,11 @@ namespace LiveRoku.Core {
         private const int maxLength = 10 * 1024 * 1024;
         private ByteBuffer workFlow;
         private static object lockHelper = new object ();
-        private Action<Packet> packetReady;
+        public Action<Packet> PacketReadyDo { get; set; }
 
-        public UnpackWatcher UnpackWatcher { get; set; }//For debugging
+        public UnpackWatcher UnpackWatcher { get; set; } //For debugging
         public PacketFactory (ByteBuffer workFlow = null) {
             this.workFlow = workFlow;
-        }
-
-        public void setPacketReadyDo(Action<Packet> packetReady = null) {
-            this.packetReady = packetReady;
         }
 
         public byte[] pack (Packet packet) {
@@ -64,7 +60,7 @@ namespace LiveRoku.Core {
 
         public void fireUnpack () {
             if (workFlow == null) return;
-            UnpackWatcher?.Fired?.Invoke(workFlow);
+            UnpackWatcher?.Fired ? .Invoke (workFlow);
             if (workFlow.ReadableBytes >= baseLength && Monitor.TryEnter (lockHelper)) {
                 Monitor.Exit (lockHelper);
                 readyUnpack ();
@@ -75,10 +71,10 @@ namespace LiveRoku.Core {
             Task.Run (() => {
                 lock (lockHelper) {
                     var packetAvailable = true;
-                    UnpackWatcher?.PreparingUnpack?.Invoke(workFlow.ReadableBytes);
+                    UnpackWatcher?.PreparingUnpack ? .Invoke (workFlow.ReadableBytes);
                     while (packetAvailable) {
                         try {
-                            UnpackWatcher?.UnpackLooping?.Invoke();
+                            UnpackWatcher?.UnpackLooping ? .Invoke ();
                             unpack (workFlow);
                             if (workFlow.ReadableBytes < baseLength) {
                                 packetAvailable = false;
@@ -108,14 +104,14 @@ namespace LiveRoku.Core {
                 flow.resetReaderIndex ();
                 return false;
             }
-            UnpackWatcher?.UnpackedHead?.Invoke(packetLength, flow.ReadableBytes + sizeof(int));
+            UnpackWatcher?.UnpackedHead ? .Invoke (packetLength, flow.ReadableBytes + sizeof (int));
             if (packetLength < maxLength) {
                 Packet packet = default (Packet);
                 if (unpackPayload (flow, packetLength, out packet)) {
                     flow.discardReadBytes (); //Same to buf.clear();
-                    packetReady?.Invoke(packet);
-                    UnpackWatcher?.PacketReady?.Invoke(DateTime.Now, packet);
-                } else UnpackWatcher?.UnpackFail?.Invoke();
+                    PacketReadyDo?.Invoke (packet);
+                    UnpackWatcher?.PacketReady ? .Invoke (DateTime.Now, packet);
+                } else UnpackWatcher?.UnpackFail ? .Invoke ();
                 /*else packet receive not complete*/
                 return true;
             } else {

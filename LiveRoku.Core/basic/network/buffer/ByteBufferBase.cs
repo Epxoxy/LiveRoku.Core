@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core{
+﻿namespace LiveRoku.Core {
     using System;
 
     public abstract class ByteBufferBase {
@@ -72,7 +72,7 @@
 
         public abstract byte[] toArray ();
     }
-    
+
     public static class BitConverterHelper {
         public static byte[] flip (this byte[] bytes) {
             if (BitConverter.IsLittleEndian) {

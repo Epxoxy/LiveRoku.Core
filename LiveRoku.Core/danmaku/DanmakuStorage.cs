@@ -47,11 +47,11 @@ namespace LiveRoku.Core {
                 resolversObj.remove (joinDanmaku);
             }
             if (force) {
-                try{
-                    writer.Close();
-                    writerFs.Close();
-                }catch (Exception e){
-                    e.printStackTrace();
+                try {
+                    writer.Close ();
+                    writerFs.Close ();
+                } catch (Exception e) {
+                    e.printStackTrace ();
                 }
             }
         }
@@ -65,8 +65,8 @@ namespace LiveRoku.Core {
                 writerFs = new FileStream (storagePath, FileMode.Create);
                 writer = new StreamWriter (writerFs, encoding);
                 writer.Write (XmlHeader);
-            } catch(Exception e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace ();
             }
 
             startFlush ();
@@ -76,8 +76,8 @@ namespace LiveRoku.Core {
                     if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) continue;
                     //TODO implements danmakuModel.ToString(datetime) method
                     writer.WriteLine (danmaku.ToString (nowTime));
-                } catch(Exception e) {
-                    e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace ();
                     continue;
                 }
             }
@@ -86,8 +86,8 @@ namespace LiveRoku.Core {
                 writer.Flush ();
                 writer.Close ();
                 writerFs.Close ();
-            } catch(Exception e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace ();
             }
         }
 
@@ -108,8 +108,8 @@ namespace LiveRoku.Core {
                     await writer.FlushAsync ();
                     await Task.Delay (flushTime);
                 }
-            } catch(Exception e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace ();
             }
 
         }

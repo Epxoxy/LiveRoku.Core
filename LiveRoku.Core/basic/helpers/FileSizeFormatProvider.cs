@@ -1,12 +1,9 @@
 ﻿using System;
 
-namespace LiveRoku.Core
-{
-    public class FileSizeFormatProvider : IFormatProvider, ICustomFormatter
-    {
-        public object GetFormat(Type formatType)
-        {
-            if (formatType == typeof(ICustomFormatter)) return this;
+namespace LiveRoku.Core {
+    public class FileSizeFormatProvider : IFormatProvider, ICustomFormatter {
+        public object GetFormat (Type formatType) {
+            if (formatType == typeof (ICustomFormatter)) return this;
             return null;
         }
 
@@ -15,74 +12,56 @@ namespace LiveRoku.Core
         private const Decimal OneMegaByte = OneKiloByte * 1024M;
         private const Decimal OneGigaByte = OneMegaByte * 1024M;
 
-        public string Format(string format, object arg, IFormatProvider formatProvider)
-        {
-            if (format == null || !format.StartsWith(fileSizeFormat))
-            {
-                return defaultFormat(format, arg, formatProvider);
+        public string Format (string format, object arg, IFormatProvider formatProvider) {
+            if (format == null || !format.StartsWith (fileSizeFormat)) {
+                return defaultFormat (format, arg, formatProvider);
             }
 
-            if (arg is string)
-            {
-                return defaultFormat(format, arg, formatProvider);
+            if (arg is string) {
+                return defaultFormat (format, arg, formatProvider);
             }
 
             Decimal size;
 
-            try
-            {
-                size = Convert.ToDecimal(arg);
-            }
-            catch (InvalidCastException)
-            {
-                return defaultFormat(format, arg, formatProvider);
+            try {
+                size = Convert.ToDecimal (arg);
+            } catch (InvalidCastException) {
+                return defaultFormat (format, arg, formatProvider);
             }
 
             string suffix;
-            if (size > OneGigaByte)
-            {
+            if (size > OneGigaByte) {
                 size /= OneGigaByte;
                 suffix = "GB";
-            }
-            else if (size > OneMegaByte)
-            {
+            } else if (size > OneMegaByte) {
                 size /= OneMegaByte;
                 suffix = "MB";
-            }
-            else if (size > OneKiloByte)
-            {
+            } else if (size > OneKiloByte) {
                 size /= OneKiloByte;
                 suffix = "kB";
-            }
-            else
-            {
+            } else {
                 suffix = " B";
             }
 
-            string precision = format.Substring(2);
-            if (String.IsNullOrEmpty(precision)) precision = "2";
-            return String.Format("{0:N" + precision + "}{1}", size, suffix);
+            string precision = format.Substring (2);
+            if (String.IsNullOrEmpty (precision)) precision = "2";
+            return String.Format ("{0:N" + precision + "}{1}", size, suffix);
 
         }
 
-        private static string defaultFormat(string format, object arg, IFormatProvider formatProvider)
-        {
+        private static string defaultFormat (string format, object arg, IFormatProvider formatProvider) {
             IFormattable formattableArg = arg as IFormattable;
-            if (formattableArg != null)
-            {
-                return formattableArg.ToString(format, formatProvider);
+            if (formattableArg != null) {
+                return formattableArg.ToString (format, formatProvider);
             }
-            return arg.ToString();
+            return arg.ToString ();
         }
-
 
     }
 
-    public static class ExtensionMethods
-    {
-        public static string ToFileSize(this long l)
-        {
-            return String.Format(new FileSizeFormatProvider(), "{0:fs}", l);
+    public static class ExtensionMethods {
+        public static string ToFileSize (this long l) {
+            return String.Format (new FileSizeFormatProvider (), "{0:fs}", l);
         }
     }
 }

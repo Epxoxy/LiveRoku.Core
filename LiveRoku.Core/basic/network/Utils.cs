@@ -1,11 +1,11 @@
 ﻿namespace LiveRoku.Core {
     internal class Utils {
-        public static bool canConnectTo(string hostNameOrAddress) {
+        public static bool canConnectTo (string hostNameOrAddress) {
             try {
-                System.Net.Dns.GetHostEntry(hostNameOrAddress);
+                System.Net.Dns.GetHostEntry (hostNameOrAddress);
                 return true;
-            } catch(System.Exception e){
-                System.Diagnostics.Debug.WriteLine(e.ToString());
+            } catch (System.Exception e) {
+                System.Diagnostics.Debug.WriteLine (e.ToString ());
                 return false;
             }
         }
