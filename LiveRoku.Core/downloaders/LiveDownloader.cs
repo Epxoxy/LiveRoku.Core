@@ -23,7 +23,7 @@ namespace LiveRoku.Core {
         public LiveStatus LiveStatus { get; private set; }
         public long RecordSize { get; private set; }
 
-        private readonly Dictionary<string, CancellationTokenSource> temp;
+        private readonly CancellationManager cancelMgr;
         private readonly BiliApi biliApi; //API access
         private readonly FlvDownloader flvFetcher; //Download flv video
         private readonly DanmakuClient danmakuClient; //Download danmaku
@@ -34,7 +34,7 @@ namespace LiveRoku.Core {
         private FetchModel settings;
 
         public LiveDownloader (IRequestModel model, string userAgent, int requestTimeout) {
-            temp = new Dictionary<string, CancellationTokenSource> ();
+            cancelMgr = new CancellationManager ();
             //Initialize Downloaders
             this.danmakuClient = new DanmakuClient ();
             this.flvFetcher = new FlvDownloader (userAgent, null);
@@ -49,7 +49,7 @@ namespace LiveRoku.Core {
             this.model = model;
             //Subscribe events
             this.danmakuClient.Events.ErrorLog += appendErrorMsg;
-            this.danmakuClient.Events.DanmakuReceived += filterDanmaku;
+            this.danmakuClient.Events.DanmakuReceived += danmakuTransmit;
             this.danmakuClient.Events.HotUpdated += hotUpdated;
             this.flvFetcher.BytesReceived += downloadSizeUpdated;
             this.flvFetcher.VideoInfoChecked += videoChecked;
@@ -158,10 +158,20 @@ namespace LiveRoku.Core {
             // this.stop();
         }
 
-        private void filterDanmaku (DanmakuModel danmaku) {
-            if (!IsRunning) return;
+        private void danmakuTransmit (DanmakuModel danmaku) {
+            if (!IsRunning/*May not come here*/) return;
             //TODO something here
+            checkLiveStatus(danmaku);
+            forEachByTaskWithDebug (DanmakuResolvers, resolver => {
+                //TODO something
+                resolver.Invoke (danmaku);
+            });
+        }
+
+        private void checkLiveStatus (DanmakuModel danmaku) {
             if (MsgTypeEnum.LiveEnd == danmaku.MsgType) {
+                cancelMgr.cancel ("autostart-fetch");
+                cancelMgr.remove ("autostart-fetch");
                 flvFetcher.stop ();
                 danmakuStorage?.stop ();
                 //Update live status
@@ -175,15 +185,16 @@ namespace LiveRoku.Core {
                 LiveStatus = LiveStatus.Start;
                 if (settings.AutoStart && !flvFetcher.IsRunning) {
                     var cancellation = new CancellationTokenSource (requestTimeout);
-                    setNewCancelToken ("forAutoStart", cancellation);
+                    cancelMgr.cancel ("autostart-fetch");
+                    cancelMgr.set ("autostart-fetch", cancellation);
                     Task.Run (async () => {
                         var isUpdated = await settings.updateModel ();
                         if (isUpdated && IsRunning && LiveStatus == LiveStatus.Start) {
                             flvFetcher.start (settings.FlvAddress);
                             appendInfoMsg ($"Flv address updated : {settings.FlvAddress}");
                         }
+                        cancelMgr.remove ("autostart-fetch");
                     }, cancellation.Token).ContinueWith (task => {
-                        temp.Remove ("forAutoStart");
                         if (task.Exception != null) {
                             task.Exception.printStackTrace ();
                             appendErrorMsg (task.Exception.Message);
@@ -195,10 +206,6 @@ namespace LiveRoku.Core {
                     resolver.onLiveStatusUpdate (LiveStatus.Start);
                 });
             }
-            forEachByTaskWithDebug (DanmakuResolvers, resolver => {
-                //TODO something
-                resolver.Invoke (danmaku);
-            });
         }
 
         private void reconnectOnError (Exception e) {
@@ -285,21 +292,6 @@ namespace LiveRoku.Core {
 
         #region Help methods below
         //Help methods
-        private void setNewCancelToken (string key, CancellationTokenSource cur) {
-            CancellationTokenSource prev;
-            if (temp.TryGetValue (key, out prev)) {
-                if (prev.Token.CanBeCanceled) {
-                    try {
-                        prev.Cancel ();
-                    } catch (Exception e) {
-                        e.printStackTrace ();
-                    }
-                }
-                temp[key] = cur;
-            } else {
-                temp.Add (key, cur);
-            }
-        }
 
         private void printException (Exception e) {
             if (e == null) return;

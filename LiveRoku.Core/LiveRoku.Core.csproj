@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="basic\helpers\CancellationManager.cs" />
     <Compile Include="basic\network\Utils.cs" />
     <Compile Include="danmaku\DanmakuClient.cs" />
     <Compile Include="danmaku\DanmakuDelegate.cs" />
