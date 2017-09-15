@@ -19,7 +19,7 @@ namespace LiveRoku.Core {
         public bool IsRunning { get; private set; }
         public bool IsStreaming { get; private set; }
         public long RecordSize { get; private set; }
-        public bool IsLiveOn { get; set; }
+        public bool IsLiveOn => isLiveOn;
 
         private readonly CancellationManager cancelMgr;
         private readonly BiliApi biliApi; //API access
@@ -30,6 +30,7 @@ namespace LiveRoku.Core {
         private VideoInfo videoInfo;
         private int requestTimeout;
         private FetchBean settings;
+        private bool isLiveOn;
 
         public LiveDownloader (IRequestModel model, string userAgent, int requestTimeout) {
             cancelMgr = new CancellationManager ();
@@ -96,7 +97,7 @@ namespace LiveRoku.Core {
             IsStreaming = false;
             RecordSize = 0;
             videoInfo = new VideoInfo ();
-            IsLiveOn = false;
+            updateLiveStatus(false, false);
             //Preparing signal
             forEachByTaskWithDebug (StatusBinders, binder => {
                 binder.onPreparing ();
@@ -173,14 +174,10 @@ namespace LiveRoku.Core {
                 flvFetcher.stop ();
                 danmakuStorage?.stop ();
                 //Update live status
-                IsLiveOn = false;
-                //Raise event when live status updated.
-                forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                    resolver.onStatusUpdate (IsLiveOn);
-                });
+                updateLiveStatus(false);
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
-                IsLiveOn = true;
+                updateLiveStatus(true);
                 if (settings.AutoStart && !flvFetcher.IsRunning) {
                     var cancellation = new CancellationTokenSource (requestTimeout);
                     cancelMgr.cancel ("autostart-fetch");
@@ -199,11 +196,16 @@ namespace LiveRoku.Core {
                         }
                     });
                 }
-                //Raise event when live status updated.
-                forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                    resolver.onStatusUpdate (IsLiveOn);
-                });
             }
+        }
+
+        private void updateLiveStatus(bool isLiveOn, bool raiseEvent = true) {
+            if (this.isLiveOn == isLiveOn) return;
+            this.isLiveOn = isLiveOn;
+            if (!raiseEvent) return;
+            forEachByTaskWithDebug(LiveDataResolvers, resolver => {
+                resolver.onStatusUpdate(isLiveOn);
+            });
         }
 
         private void reconnectOnError (Exception e) {
