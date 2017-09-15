@@ -84,11 +84,13 @@
         }
 
         public override void clear () {
-            buf = new byte[buf.Length];
-            readIndex = 0;
-            writeIndex = 0;
-            markReadIndex = 0;
-            markWriteIndex = 0;
+            lock (locker) {
+                buf = new byte[buf.Length];
+                readIndex = 0;
+                writeIndex = 0;
+                markReadIndex = 0;
+                markWriteIndex = 0;
+            }
         }
 
         public override byte[] toArray () {

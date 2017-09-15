@@ -1,4 +1,8 @@
-﻿{
+﻿//"_status" on/off
+//"LIVE_STATUS" PREPARING/LIVE/ROUND
+//"ROUND_STATUS":1
+
+{
   "code": 0,
   "msg": "OK",
   "data": {

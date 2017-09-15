@@ -70,6 +70,7 @@ namespace LiveRoku.Core {
         private void readyUnpack () {
             Task.Run (() => {
                 lock (lockHelper) {
+                    System.Diagnostics.Debug.WriteLine("****************unpack");
                     var packetAvailable = true;
                     UnpackWatcher?.PreparingUnpack ? .Invoke (workFlow.ReadableBytes);
                     while (packetAvailable) {

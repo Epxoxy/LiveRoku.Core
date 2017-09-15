@@ -73,7 +73,7 @@
     <Compile Include="basic\network\context\IFlowResolver.cs" />
     <Compile Include="basic\network\context\ITransformContext.cs" />
     <Compile Include="basic\network\context\IWrappedResolver.cs" />
-    <Compile Include="basic\network\TransformResolverLite.cs" />
+    <Compile Include="basic\network\ResolverContextLite.cs" />
     <Compile Include="danmaku\handlers\KeepAliveHandler.cs" />
     <Compile Include="danmaku\handlers\UnpackHandler.cs" />
     <Compile Include="danmaku\packet\Packet.cs" />

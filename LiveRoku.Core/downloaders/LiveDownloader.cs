@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -21,66 +23,64 @@ namespace LiveRoku.Core {
         public LiveStatus LiveStatus { get; private set; }
         public long RecordSize { get; private set; }
 
-        private BiliApi biliApi; //API access
-        private FlvDownloader flvDloader; //Download flv video
-        private DanmakuClient danmakuClient; //Download danmaku
+        private readonly Dictionary<string, CancellationTokenSource> temp;
+        private readonly BiliApi biliApi; //API access
+        private readonly FlvDownloader flvFetcher; //Download flv video
+        private readonly DanmakuClient danmakuClient; //Download danmaku
         private DanmakuStorage danmakuStorage;
-        private IRequestModel model; //Provide base parameters
-        private VideoInfo video;
-        private int realRoomId;
-        private bool autoStart;
-        private bool danmakuNeed;
-        private string storeFolder;
-        private string videoFullName;
+        private readonly IRequestModel model; //Provide base parameters
+        private VideoInfo videoInfo;
         private int requestTimeout;
+        private FetchModel settings;
 
-        public LiveDownloader (IRequestModel model, string userAgent, int requestTimeout = 5000) {
+        public LiveDownloader (IRequestModel model, string userAgent, int requestTimeout) {
+            temp = new Dictionary<string, CancellationTokenSource> ();
+            //Initialize Downloaders
+            this.danmakuClient = new DanmakuClient ();
+            this.flvFetcher = new FlvDownloader (userAgent, null);
+            //Initialize Handlers
             this.StatusBinders = new LowList<IStatusBinder> ();
             this.DanmakuResolvers = new LowList<DanmakuResolver> ();
             this.LiveDataResolvers = new LowList<ILiveDataResolver> ();
             this.Loggers = new LowList<ILogger> ();
+            //Initialize Others
             this.biliApi = new BiliApi (this, userAgent);
             this.requestTimeout = requestTimeout;
             this.model = model;
+            //Subscribe events
+            this.danmakuClient.Events.ErrorLog += appendErrorMsg;
+            this.danmakuClient.Events.DanmakuReceived += filterDanmaku;
+            this.danmakuClient.Events.HotUpdated += hotUpdated;
+            this.flvFetcher.BytesReceived += downloadSizeUpdated;
+            this.flvFetcher.VideoInfoChecked += videoChecked;
+            this.flvFetcher.StatusUpdated += onDownloadStatus;
+        }
+        public LiveDownloader (IRequestModel model, string userAgent):
+            this (model, userAgent, 5000) { }
+
+        private void purgeEvents () {
+            flvFetcher.BytesReceived -= downloadSizeUpdated;
+            flvFetcher.BytesReceived -= onStreaming;
+            flvFetcher.VideoInfoChecked -= videoChecked;
+            flvFetcher.StatusUpdated -= onDownloadStatus;
+            danmakuClient.Events.purgeEvents ();
         }
 
         public void Dispose () {
-            if (IsRunning) {
-                stop ();
-            }
-            clear (StatusBinders);
-            clear (DanmakuResolvers);
-            clear (LiveDataResolvers);
-        }
-
-        public void appendLine (string tag, string log) {
-            forEachByTaskWithDebug (Loggers, logger => {
-                logger.appendLine (tag, log);
-            });
+            stop ();
+            purgeEvents ();
+            StatusBinders?.clear ();
+            DanmakuResolvers?.clear ();
+            LiveDataResolvers?.clear ();
         }
 
         public void stop (bool force = false) {
             if (IsRunning) {
                 IsRunning = false;
                 IsStreaming = false;
-                if (flvDloader != null) {
-                    var temp = flvDloader;
-                    flvDloader = null;
-                    temp.BytesReceived -= downloadSizeUpdated;
-                    temp.BytesReceived -= onStreaming;
-                    temp.VideoInfoChecked -= videoChecked;
-                    temp.StatusUpdated -= onDownloadStatus;
-                    temp.stop ();
-                }
-                if (danmakuClient != null) {
-                    var temp = danmakuClient;
-                    danmakuClient = null;
-                    temp.Events.ErrorLog -= logErrorMsg;
-                    temp.Events.DanmakuReceived -= filterDanmaku;
-                    temp.Events.HotUpdated -= onlineUpdated;
-                    temp.Events.Closed -= checkIfReconnect;
-                    temp.stop ();
-                }
+                danmakuClient.Events.Closed -= reconnectOnError;
+                flvFetcher.stop ();
+                danmakuClient.stop ();
                 if (danmakuStorage != null) {
                     var temp = danmakuStorage;
                     danmakuStorage = null;
@@ -97,66 +97,60 @@ namespace LiveRoku.Core {
             IsRunning = true;
             IsStreaming = false;
             RecordSize = 0;
-            video = new VideoInfo ();
+            videoInfo = new VideoInfo ();
             LiveStatus = LiveStatus.Unchecked;
             //Preparing signal
             forEachByTaskWithDebug (StatusBinders, binder => {
                 binder.onPreparing ();
             });
             //Get running parameters
-            var roomId = model.RoomId;
+            var roomIdText = model.RoomId;
             var folder = model.Folder;
             var format = model.FileFormat;
-            this.danmakuNeed = model.DownloadDanmaku;
-            this.autoStart = model.AutoStart;
+            int roomId;
+            if (!int.TryParse (roomIdText, out roomId)) {
+                appendErrorMsg ("Wrong id.");
+                stop ();
+                return;
+            }
             //Prepare to start task
             //Cancel when no result back over five second
             var cts = new CancellationTokenSource (requestTimeout);
             //Prepare real roomId and flv url
-            string roomIdTemp = null, flvUrl = null;
-            Task.Run (() => {
-                //Try to get real roomId
-                roomIdTemp = biliApi.getRealRoomId (roomId);
-                //Try to get flv url
-                if (!string.IsNullOrEmpty (roomIdTemp)) {
-                    flvUrl = biliApi.getRealUrl (roomIdTemp);
-                }
+            bool isUpdated = false;
+            Task.Run (async () => {
+                settings = new FetchModel (roomId, biliApi);
+                settings.Logger = this;
+                isUpdated = await settings.updateModel ();
             }, cts.Token).ContinueWith (task => {
                 task.Exception?.printStackTrace ();
                 //Check if get it successful
-                if (!string.IsNullOrEmpty (flvUrl) &&
-                    int.TryParse (roomIdTemp, out realRoomId)) {
-                    var path = Path.Combine (folder, model.formatFileName (roomIdTemp));
-                    storeUsing (folder, path);
-                    //Create DanmakuLoader and subscribe event handlers
-                    danmakuClient = new DanmakuClient ();
-                    danmakuClient.Events.ErrorLog += logErrorMsg;
-                    danmakuClient.Events.DanmakuReceived += filterDanmaku;
-                    danmakuClient.Events.HotUpdated += onlineUpdated;
-                    danmakuClient.Events.Closed += checkIfReconnect;
+                if (isUpdated) {
+                    var fileName = Path.Combine (folder, model.formatFileName (settings.RealRoomIdText));
+                    //complete model
+                    settings.Folder = folder;
+                    settings.FileFullName = fileName;
+                    settings.AutoStart = model.AutoStart;
+                    settings.DanmakuNeed = model.DownloadDanmaku;
                     //Create FlvDloader and subscribe event handlers
-                    flvDloader = new FlvDownloader (biliApi.userAgent, path);
-                    flvDloader.BytesReceived += downloadSizeUpdated;
-                    flvDloader.BytesReceived += onStreaming;
-                    flvDloader.VideoInfoChecked += videoChecked;
-                    flvDloader.StatusUpdated += onDownloadStatus;
+                    flvFetcher.updateSavePath (settings.FileFullName);
+                    flvFetcher.BytesReceived -= onStreaming;
+                    flvFetcher.BytesReceived += onStreaming;
+                    danmakuClient.Events.Closed -= reconnectOnError;
+                    danmakuClient.Events.Closed += reconnectOnError;
                     //All parameters ready
                     forEachByTaskWithDebug (StatusBinders, binder => {
                         binder.onWaiting ();
                     });
-                    logInfoMsg ($"All ready, fetch: {flvUrl}");
+                    appendInfoMsg ($"All ready, fetch: {settings.FlvAddress}");
                     //All ready, start now
-                    flvDloader.start (flvUrl);
-                    danmakuClient.start (biliApi, realRoomId);
+                    flvFetcher.start (settings.FlvAddress);
+                    danmakuClient.start (biliApi, settings.RealRoomId);
                 } else {
-                    logErrorMsg ($"Get value fail, RealRoomId : {roomIdTemp}");
+                    appendErrorMsg ($"Get value fail, RealRoomId : {settings.RealRoomIdText}");
+                    stop ();
                 }
             });
-        }
-
-        private void storeUsing (string folder, string fileFullName) {
-            this.storeFolder = folder;
-            this.videoFullName = fileFullName;
         }
 
         private void onDownloadStatus (bool isRunning) {
@@ -168,7 +162,7 @@ namespace LiveRoku.Core {
             if (!IsRunning) return;
             //TODO something here
             if (MsgTypeEnum.LiveEnd == danmaku.MsgType) {
-                flvDloader?.stop ();
+                flvFetcher.stop ();
                 danmakuStorage?.stop ();
                 //Update live status
                 LiveStatus = LiveStatus.End;
@@ -179,6 +173,23 @@ namespace LiveRoku.Core {
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
                 LiveStatus = LiveStatus.Start;
+                if (settings.AutoStart && !flvFetcher.IsRunning) {
+                    var cancellation = new CancellationTokenSource (requestTimeout);
+                    setNewCancelToken ("forAutoStart", cancellation);
+                    Task.Run (async () => {
+                        var isUpdated = await settings.updateModel ();
+                        if (isUpdated && IsRunning && LiveStatus == LiveStatus.Start) {
+                            flvFetcher.start (settings.FlvAddress);
+                            appendInfoMsg ($"Flv address updated : {settings.FlvAddress}");
+                        }
+                    }, cancellation.Token).ContinueWith (task => {
+                        temp.Remove ("forAutoStart");
+                        if (task.Exception != null) {
+                            task.Exception.printStackTrace ();
+                            appendErrorMsg (task.Exception.Message);
+                        }
+                    });
+                }
                 //Raise event when live status updated.
                 forEachByTaskWithDebug (LiveDataResolvers, resolver => {
                     resolver.onLiveStatusUpdate (LiveStatus.Start);
@@ -190,69 +201,68 @@ namespace LiveRoku.Core {
             });
         }
 
-        private void checkIfReconnect (Exception e) {
+        private void reconnectOnError (Exception e) {
             //TODO something here
-            logErrorMsg (e?.Message);
+            appendErrorMsg (e?.Message);
             if (!IsRunning) return;
-            logInfoMsg ("Trying to reconnect to the danmaku server.");
+            appendInfoMsg ("Trying to reconnect to the danmaku server.");
             Task.Run (() => {
-                danmakuClient.start (biliApi, realRoomId);
+                danmakuClient.start (biliApi, settings.RealRoomId);
             }).ContinueWith (task => {
                 task.Exception?.printStackTrace ();
             });
         }
 
-        private void onlineUpdated (long online) {
+        private void hotUpdated (long popularity) {
             forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                resolver.onOnlineCountUpdate (online);
+                resolver.onHotUpdate (popularity);
             });
         }
 
         //Raise event when video info checked
-        private void videoChecked (VideoInfo video) {
-            if (this.video.BitRate != video.BitRate) {
-                var text = video.BitRate / 1000 + " Kbps";
+        private void videoChecked (VideoInfo info) {
+            var previous = this.videoInfo;
+            this.videoInfo = info;
+            if (previous.BitRate != info.BitRate) {
+                appendInfoMsg ($"{previous.BitRate} {info.BitRate}");
+                var text = info.BitRate / 1000 + " Kbps";
                 forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                    resolver.onBitRateUpdate (video.BitRate, text);
+                    resolver.onBitRateUpdate (info.BitRate, text);
                 });
             }
-            if (this.video.Duration != video.Duration) {
-                var text = toTimeFormat (video.Duration);
+            if (previous.Duration != info.Duration) {
+                var text = formatTime (info.Duration);
                 forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                    resolver.onDurationUpdate (video.Duration, text);
+                    resolver.onDurationUpdate (info.Duration, text);
                 });
             }
-            this.video = video;
         }
 
         private void onStreaming (long bytes) {
             if (bytes < 2 || IsStreaming) return;
             IsStreaming = true;
-            logInfoMsg ("Streaming check.....");
-            if (flvDloader != null) {
-                flvDloader.BytesReceived -= onStreaming;
+            appendInfoMsg ("Streaming check.....");
+            if (flvFetcher != null) {
+                flvFetcher.BytesReceived -= onStreaming;
             }
             Task.Run (() => {
                 danmakuStorage?.stop (force : true);
                 //Generate danmaku storage
-                if (danmakuNeed) {
-                    string xmlPath = Path.ChangeExtension (videoFullName, "xml");
+                if (settings.DanmakuNeed) {
+                    string xmlPath = Path.ChangeExtension (settings.FileFullName, "xml");
                     var startTimestamp = Convert.ToInt64 (TimeHelper.totalMsToGreenTime (DateTime.UtcNow));
                     danmakuStorage = new DanmakuStorage (xmlPath, startTimestamp, this, Encoding.UTF8);
-                    danmakuStorage.start ();
-                    logInfoMsg ("Start danmaku storage.....");
+                    danmakuStorage.startAsync ();
+                    appendInfoMsg ("Start danmaku storage.....");
                 }
                 //Start connect to danmaku server
-                Task.Run (() => {
-                    if (danmakuClient.isActive ()) return;
-                    logInfoMsg ("Connect danmaku server.....");
-                    danmakuClient.start (biliApi, realRoomId);
-                }).ContinueWith (task => {
-                    task.Exception?.printStackTrace ();
-                });
-                forEachByTaskWithDebug (StatusBinders, binder => {
-                    binder.onStreaming ();
-                });
+                if (!danmakuClient.isActive ()) {
+                    appendInfoMsg ("Connect to danmaku server.....");
+                    danmakuClient.start (biliApi, settings.RealRoomId);
+                }
+            });
+            forEachByTaskWithDebug (StatusBinders, binder => {
+                binder.onStreaming ();
             });
         }
 
@@ -265,22 +275,35 @@ namespace LiveRoku.Core {
             });
         }
 
-        private void logErrorMsg (string msg) => appendLine ("Error", msg);
-        private void logInfoMsg (string msg) => appendLine ("INFO", msg);
+        public void appendLine (string tag, string log) {
+            forEachByTaskWithDebug (Loggers, logger => {
+                logger.appendLine (tag, log);
+            });
+        }
+        private void appendErrorMsg (string msg) => appendLine ("Error", msg);
+        private void appendInfoMsg (string msg) => appendLine ("INFO", msg);
 
         #region Help methods below
         //Help methods
-        private void logIfException (Exception e) {
-            if (e == null) return;
-            e.printStackTrace ();
+        private void setNewCancelToken (string key, CancellationTokenSource cur) {
+            CancellationTokenSource prev;
+            if (temp.TryGetValue (key, out prev)) {
+                if (prev.Token.CanBeCanceled) {
+                    try {
+                        prev.Cancel ();
+                    } catch (Exception e) {
+                        e.printStackTrace ();
+                    }
+                }
+                temp[key] = cur;
+            } else {
+                temp.Add (key, cur);
+            }
         }
 
-        private void clear<T> (LowList<T> list) where T : class {
-            if (list != null) {
-                var temp = list;
-                list = null;
-                temp.clear ();
-            }
+        private void printException (Exception e) {
+            if (e == null) return;
+            e.printStackTrace ();
         }
 
         private void forEachByTaskWithDebug<T> (LowList<T> host, Action<T> action) where T : class {
@@ -293,7 +316,7 @@ namespace LiveRoku.Core {
             });
         }
 
-        private string toTimeFormat (long ms) {
+        private string formatTime (long ms) {
             return new System.Text.StringBuilder ()
                 .Append ((ms / (1000 * 60 * 60)).ToString ("00")).Append (":")
                 .Append ((ms / (1000 * 60) % 60).ToString ("00")).Append (":")
@@ -301,6 +324,53 @@ namespace LiveRoku.Core {
         }
         #endregion
 
+    }
+
+    internal class FetchModel {
+        public string OriginRoomIdText { get; private set; }
+        public string RealRoomIdText { get; private set; }
+        public int OriginRoomId { get; private set; }
+        public int RealRoomId { get; private set; }
+        public string FlvAddress { get; private set; }
+        public RoomInfo RoomInfo { get; private set; }
+        public string Folder { get; set; }
+        public string FileFullName { get; set; }
+        public bool AutoStart { get; set; }
+        public bool DanmakuNeed { get; set; }
+        private readonly BiliApi biliApi;
+        public ILogger Logger { get; set; }
+
+        public FetchModel (int originRoomId, BiliApi biliApi) {
+            this.OriginRoomId = originRoomId;
+            this.OriginRoomIdText = originRoomId.ToString ();
+            this.biliApi = biliApi;
+        }
+
+        public Task<bool> updateModel () {
+            return Task.Run (() => {
+                var sw = new Stopwatch ();
+                sw.Start ();
+                Logger?.appendLine ("INFO", "-->sw--> start 00m:00s 000");
+                //Try to get real roomId
+                var realRoomIdTextTemp = biliApi.getRealRoomId (OriginRoomIdText);
+                Logger?.appendLine ("INFO", $"-->sw--> fetched real roomId at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                int realRoomIdTemp;
+                //Try to get flv url
+                if (!string.IsNullOrEmpty (realRoomIdTextTemp) && int.TryParse (realRoomIdTextTemp, out realRoomIdTemp)) {
+                    var flvUrl = biliApi.getRealUrl (realRoomIdTextTemp);
+                    Logger?.appendLine ("INFO", $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                    if (!string.IsNullOrEmpty (flvUrl)) {
+                        this.RealRoomId = realRoomIdTemp;
+                        this.RealRoomIdText = realRoomIdTextTemp;
+                        this.FlvAddress = flvUrl;
+                        this.RoomInfo = biliApi.getRoomInfo (RealRoomId);
+                        Logger?.appendLine ("INFO", $"-->sw--> fetched room info at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
     }
 
 }

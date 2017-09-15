@@ -9,10 +9,16 @@ namespace LiveRoku.Core {
         public bool IsRunning { get; private set; }
 
         private WebClient client;
-        protected readonly string savePath;
+        protected string savePath;
 
         public FileDownloaderBase (string savePath) {
             this.savePath = savePath;
+        }
+
+        public bool updateSavePath (string savePath) {
+            if (IsRunning) return false;
+            this.savePath = savePath;
+            return true;
         }
 
         public void start (string uri) {
@@ -58,6 +64,8 @@ namespace LiveRoku.Core {
         }
 
         private bool checkFolder () {
+            if (string.IsNullOrEmpty (savePath))
+                return false;
             if (Directory.Exists (Path.GetDirectoryName (savePath)))
                 return true;
             try {

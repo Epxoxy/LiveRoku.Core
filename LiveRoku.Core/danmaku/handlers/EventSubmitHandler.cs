@@ -6,6 +6,14 @@
         public event DisconnectedHandler Closed;
         public event HotUpdatedHandler HotUpdated;
         public event LogHandler ErrorLog;
+        
+        public void purgeEvents () {
+            DanmakuReceived = delegate { };
+            Connected = delegate { };
+            Closed = delegate { };
+            HotUpdated = delegate { };
+            ErrorLog = delegate { };
+        }
 
         public override void onConnected (ITransformContext ctx) {
             Connected?.Invoke ();
@@ -13,8 +21,7 @@
 
         public override void onRead (ITransformContext ctx, object data) {
             if (data != null && data is Packet) {
-                var packet = (Packet) data;
-                checkPacket (packet);
+                checkPacket ((Packet) data);
             }
         }
 

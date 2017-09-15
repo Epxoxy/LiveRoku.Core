@@ -16,7 +16,14 @@ namespace LiveRoku.Core {
                     d.UserName = obj[2][1].ToString ();
                     break;
                 case 2:
-                    resolveVersion2 (ref d, JObject.Parse (jsonText));
+                    try {
+                        resolveVersion2 (ref d, JObject.Parse (jsonText));
+                    } catch (Exception e) {
+                        System.Diagnostics.Debug.WriteLine (jsonText);
+                        System.Diagnostics.Debug.WriteLine(e.Message);
+                        System.Diagnostics.Debug.WriteLine(e.TargetSite);
+                        //e.printStackTrace ();
+                    }
                     break;
                 default:
                     throw new Exception ();
@@ -92,18 +99,22 @@ namespace LiveRoku.Core {
         }
 
         private static void resolveDanmakuMsg (ref DanmakuModel d, JObject obj) {
-            d.CommentText = obj["info"][1].ToString ();
-            d.UserID = obj["info"][2][0].ToObject<int> ();
-            d.UserName = obj["info"][2][1].ToString ();
-            d.isAdmin = obj["info"][2][2].ToString () == "1";
-            d.isVIP = obj["info"][2][3].ToString () == "1";
-            d.UserGuardLevel = obj["info"][7].ToObject<int> ();
+            var data = (JArray) obj["info"];
+            var length = data.Count;
+            if (length > 7) {
+                d.UserGuardLevel = data[7].ToObject<int> ();
+            }
+            d.CommentText = data[1].ToString ();
+            d.UserID = data[2][0].ToObject<int> ();
+            d.UserName = data[2][1].ToString ();
+            d.isAdmin = data[2][2].ToString () == "1";
+            d.isVIP = data[2][3].ToString () == "1";
             //Get text only danmaku extension
-            d.DmType = Convert.ToInt32 (obj["info"][0][1]);
-            d.Fontsize = Convert.ToInt32 (obj["info"][0][2]);
-            d.Color = Convert.ToInt32 (obj["info"][0][3]);
-            d.SendTimestamp = Convert.ToInt64 (obj["info"][0][4]);
-            d.UserHash = obj["info"][0][7].ToString ();
+            d.DmType = Convert.ToInt32 (data[0][1]);
+            d.Fontsize = Convert.ToInt32 (data[0][2]);
+            d.Color = Convert.ToInt32 (data[0][3]);
+            d.SendTimestamp = Convert.ToInt64 (data[0][4]);
+            d.UserHash = data[0][7].ToString ();
         }
     }
 }

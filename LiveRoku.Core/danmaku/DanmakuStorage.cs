@@ -11,14 +11,14 @@ namespace LiveRoku.Core {
         private const string XmlFooter = "</i>";
         private readonly ConcurrentQueue<DanmakuModel> danmakuQueue;
         private WeakReference<LowList<DanmakuResolver>> resolvers;
-        private readonly string storagePath;
-        private readonly long nowTime;
-        private readonly int flushTime;
+        private string storagePath;
+        private long nowTime;
+        private int flushTime;
 
         private Encoding encoding;
         private FileStream writerFs;
         private StreamWriter writer;
-        public bool IsOpen { get; private set; }
+        public bool IsWriting { get; private set; }
 
         public DanmakuStorage (string storagePath, long nowTime, IDanmakuSource source, Encoding encoding, int flushTime = 30000) {
             this.resolvers = new WeakReference<LowList<DanmakuResolver>> (source.DanmakuResolvers);
@@ -29,19 +29,19 @@ namespace LiveRoku.Core {
             this.encoding = encoding;
         }
 
-        public void start () {
+        public void startAsync () {
+            if (IsWriting) return;
+            IsWriting = true;
             LowList<DanmakuResolver> resolversObj;
-            if (IsOpen) return;
             if (resolvers.TryGetTarget (out resolversObj)) {
-                IsOpen = true;
                 resolversObj.remove (joinDanmaku);
                 resolversObj.add (joinDanmaku);
-                startWrite ();
-            }
+                Task.Run(() => startWrite());
+            }else IsWriting = false;
         }
 
         public void stop (bool force = false) {
-            IsOpen = false;
+            IsWriting = false;
             LowList<DanmakuResolver> resolversObj;
             if (resolvers.TryGetTarget (out resolversObj)) {
                 resolversObj.remove (joinDanmaku);
@@ -70,7 +70,7 @@ namespace LiveRoku.Core {
             }
 
             startFlush ();
-            while (IsOpen) {
+            while (IsWriting) {
                 try {
                     var danmaku = await dequeue ();
                     if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) continue;
@@ -103,7 +103,7 @@ namespace LiveRoku.Core {
 
         private async void startFlush () {
             try {
-                while (IsOpen) {
+                while (IsWriting) {
                     if (writer == null) continue;
                     await writer.FlushAsync ();
                     await Task.Delay (flushTime);

@@ -1,17 +1,18 @@
 ﻿namespace LiveRoku.Core {
     public class UnpackHandler : AbstractFlowResolver {
         private PacketFactory factory = new PacketFactory ();
-        private ITransformContext ctx;
+        private ITransformContext ctxTemp;
 
         public UnpackHandler () { }
         public UnpackHandler (UnpackWatcher unpackWatcher) {
             factory.UnpackWatcher = unpackWatcher;
             factory.PacketReadyDo = p => {
-                ctx?.fireRead (p);
+                ctxTemp?.fireRead (p);
             };
         }
 
         public override void onReadReady (ITransformContext ctx, object data) {
+            this.ctxTemp = ctx;
             factory.setWorkFlow ((ByteBuffer) data);
             factory.fireUnpack ();
             base.onReadReady (ctx, data);

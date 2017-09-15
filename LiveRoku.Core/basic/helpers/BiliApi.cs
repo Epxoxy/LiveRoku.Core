@@ -7,10 +7,21 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using LiveRoku.Base;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace LiveRoku.Core {
 
+    public enum LiveStatus2 { Preparing, Live, Round }
+    public class RoomInfo {
+        public bool IsOn { get; set; }
+        public LiveStatus2 LiveStatus { get; set; }
+        public string Title { get; set; }
+        public int TimeLine { get; set; }
+        public string Anchor { get; set; }
+        public override string ToString () {
+            return $"IsOn : {IsOn}, LiveStatus : {LiveStatus}, Title : {Title}";
+        }
+    }
     public class BiliApi {
 
         public static class Const {
@@ -132,7 +143,7 @@ namespace LiveRoku.Core {
                 return string.Empty;
                 throw new Exception ("No roomId");
             }
-            var apiUrl = getApiUrl (roomId);
+            var apiUrl = createApiUrl (roomId);
 
             string xmlText;
 
@@ -167,8 +178,9 @@ namespace LiveRoku.Core {
             return realUrl;
         }
 
-        public void getRoomInfo (int roomId) {
-            string url = $"live.bilibili.com/live/getInfo?roomid={roomId}";
+        //TODO complete
+        public RoomInfo getRoomInfo (int realRoomId) {
+            string url = $"https://live.bilibili.com/live/getInfo?roomid={realRoomId}";
             var wc = new WebClient ();
             wc.Headers.Add ("Accept: text/html");
             wc.Headers.Add ("User-Agent: " + userAgent);
@@ -177,12 +189,32 @@ namespace LiveRoku.Core {
 
             try {
                 infoJson = wc.DownloadString (url);
+                var data = JObject.Parse (infoJson)["data"];
+                logger.appendLine ("Info", infoJson);
+                if (data != null && data.Type != JTokenType.Null && data.Type != JTokenType.Undefined &&
+                    data.HasValues) {
+                    logger.appendLine ("_status", data.Value<string> ("_status"));
+                    logger.appendLine ("LiveStatus", data.Value<string> ("LIVE_STATUS"));
+                    logger.appendLine ("RoomTitle", data.Value<string> ("ROOMTITLE"));
+
+                    LiveStatus2 status;
+                    Enum.TryParse (data.Value<string> ("LIVE_STATUS"), true, out status);
+                    var info = new RoomInfo ();
+                    info.IsOn = "on".Equals (data.Value<string> ("_status").ToLower ());
+                    info.LiveStatus = status;
+                    info.Title = data.Value<string> ("ROOMTITLE");
+                    info.TimeLine = data.Value<int>("LIVE_TIMELINE");
+                    info.Anchor = data.Value<string>("ANCHOR_NICK_NAME");
+                    return info;
+                }
             } catch (Exception e) {
                 logger.appendLine ("ERROR", "Open live page fail : " + e.Message);
+                e.printStackTrace();
             }
+            return null;
         }
 
-        private string getApiUrl (string roomId) {
+        private string createApiUrl (string roomId) {
             //Generate parameters
             var apiParams = new StringBuilder ().Append ("appkey=").Append (Const.AppKey).Append ("&")
                 .Append ("cid=").Append (roomId).Append ("&")
