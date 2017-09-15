@@ -18,8 +18,8 @@ namespace LiveRoku.Core {
         public LowList<ILogger> Loggers { get; private set; }
         public bool IsRunning { get; private set; }
         public bool IsStreaming { get; private set; }
-        public LiveStatus LiveStatus { get; private set; }
         public long RecordSize { get; private set; }
+        public bool IsLiveOn { get; set; }
 
         private readonly CancellationManager cancelMgr;
         private readonly BiliApi biliApi; //API access
@@ -96,7 +96,7 @@ namespace LiveRoku.Core {
             IsStreaming = false;
             RecordSize = 0;
             videoInfo = new VideoInfo ();
-            LiveStatus = LiveStatus.Unchecked;
+            IsLiveOn = false;
             //Preparing signal
             forEachByTaskWithDebug (StatusBinders, binder => {
                 binder.onPreparing ();
@@ -173,21 +173,21 @@ namespace LiveRoku.Core {
                 flvFetcher.stop ();
                 danmakuStorage?.stop ();
                 //Update live status
-                LiveStatus = LiveStatus.End;
+                IsLiveOn = false;
                 //Raise event when live status updated.
                 forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                    resolver.onLiveStatusUpdate (LiveStatus.End);
+                    resolver.onStatusUpdate (IsLiveOn);
                 });
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
-                LiveStatus = LiveStatus.Start;
+                IsLiveOn = true;
                 if (settings.AutoStart && !flvFetcher.IsRunning) {
                     var cancellation = new CancellationTokenSource (requestTimeout);
                     cancelMgr.cancel ("autostart-fetch");
                     cancelMgr.set ("autostart-fetch", cancellation);
                     Task.Run (async () => {
                         var isUpdated = await settings.refresh ();
-                        if (isUpdated && IsRunning && LiveStatus == LiveStatus.Start) {
+                        if (isUpdated && IsRunning && IsLiveOn) {
                             flvFetcher.start (settings.FlvAddress);
                             appendInfoMsg ($"Flv address updated : {settings.FlvAddress}");
                         }
@@ -201,7 +201,7 @@ namespace LiveRoku.Core {
                 }
                 //Raise event when live status updated.
                 forEachByTaskWithDebug (LiveDataResolvers, resolver => {
-                    resolver.onLiveStatusUpdate (LiveStatus.Start);
+                    resolver.onStatusUpdate (IsLiveOn);
                 });
             }
         }
@@ -280,6 +280,21 @@ namespace LiveRoku.Core {
             });
         }
 
+        public RoomInfo fetchRoomInfo(bool refresh) {
+            if (!IsRunning || refresh) {
+                if (settings == null) {
+                    int roomId;
+                    if (!int.TryParse(model.RoomId, out roomId)) return null;
+                    settings = new FetchBean(roomId, biliApi);
+                }
+                settings.refresh();
+            }
+            return settings.RoomInfo;
+        }
+
+        //For extension
+        public object getExtra(string key) { return null; }
+
         public void appendLine (string tag, string log) {
             forEachByTaskWithDebug (Loggers, logger => {
                 logger.appendLine (tag, log);
@@ -312,6 +327,7 @@ namespace LiveRoku.Core {
                 .Append ((ms / (1000 * 60) % 60).ToString ("00")).Append (":")
                 .Append ((ms / 1000 % 60).ToString ("00")).ToString ();
         }
+
         #endregion
 
     }

@@ -5,6 +5,9 @@ using System.Threading;
 namespace LiveRoku.Core {
     internal class CancellationManager {
         private Dictionary<string, CancellationTokenSource> ctsTemp;
+        public CancellationManager() {
+            ctsTemp = new Dictionary<string, CancellationTokenSource>();
+        }
 
         public void set (string key, CancellationTokenSource cts) {
             if (ctsTemp.ContainsKey (key)) {

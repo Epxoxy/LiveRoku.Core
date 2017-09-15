@@ -186,7 +186,7 @@ namespace LiveRoku.Core {
                     logger.appendLine ("LiveStatus", data.Value<string> ("LIVE_STATUS"));
                     logger.appendLine ("RoomTitle", data.Value<string> ("ROOMTITLE"));
 
-                    LiveStatus2 status;
+                    LiveStatus status;
                     Enum.TryParse (data.Value<string> ("LIVE_STATUS"), true, out status);
                     var info = new RoomInfo ();
                     info.IsOn = "on".Equals (data.Value<string> ("_status").ToLower ());
