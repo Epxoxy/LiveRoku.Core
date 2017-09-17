@@ -120,11 +120,12 @@ namespace LiveRoku.Core {
             Task.Run (async () => {
                 settings = new FetchBean (roomId, biliApi);
                 settings.Logger = this;
-                isUpdated = await settings.refresh ();
+                isUpdated = await settings.refreshAllAsync ();
             }, cts.Token).ContinueWith (task => {
                 task.Exception?.printStackTrace ();
                 //Check if get it successful
                 if (isUpdated) {
+                    settings.fetchRoomInfoAsync();
                     var fileName = Path.Combine (folder, model.formatFileName (settings.RealRoomIdText));
                     //complete model
                     settings.Folder = folder;
@@ -183,7 +184,7 @@ namespace LiveRoku.Core {
                     cancelMgr.cancel ("autostart-fetch");
                     cancelMgr.set ("autostart-fetch", cancellation);
                     Task.Run (async () => {
-                        var isUpdated = await settings.refresh ();
+                        var isUpdated = await settings.refreshAllAsync ();
                         if (isUpdated && IsRunning && IsLiveOn) {
                             flvFetcher.start (settings.FlvAddress);
                             appendInfoMsg ($"Flv address updated : {settings.FlvAddress}");
@@ -288,8 +289,9 @@ namespace LiveRoku.Core {
                     int roomId;
                     if (!int.TryParse(model.RoomId, out roomId)) return null;
                     settings = new FetchBean(roomId, biliApi);
+                    settings.refreshAllAsync();
                 }
-                settings.refresh();
+                settings.fetchRoomInfoAsync();
             }
             return settings.RoomInfo;
         }

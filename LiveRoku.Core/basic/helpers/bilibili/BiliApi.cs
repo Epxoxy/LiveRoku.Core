@@ -179,7 +179,8 @@ namespace LiveRoku.Core {
             try {
                 infoJson = wc.DownloadString (url);
                 var data = JObject.Parse (infoJson)["data"];
-                logger.appendLine ("Info", infoJson);
+                System.Diagnostics.Debug.WriteLine(infoJson);
+                //logger.appendLine ("Info", infoJson);
                 if (data != null && data.Type != JTokenType.Null && data.Type != JTokenType.Undefined &&
                     data.HasValues) {
                     logger.appendLine ("_status", data.Value<string> ("_status"));

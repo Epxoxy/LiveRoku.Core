@@ -16,6 +16,7 @@ namespace LiveRoku.Core {
         public bool DanmakuNeed { get; set; }
         public ILogger Logger { get; set; }
         private readonly BiliApi biliApi;
+        private object fetchLocker = new object();
 
         public FetchBean (int originRoomId, BiliApi biliApi) {
             this.OriginRoomId = originRoomId;
@@ -23,7 +24,7 @@ namespace LiveRoku.Core {
             this.biliApi = biliApi;
         }
 
-        public Task<bool> refresh () {
+        public Task<bool> refreshAllAsync () {
             return Task.Run (() => {
                 var sw = new Stopwatch ();
                 sw.Start ();
@@ -40,12 +41,25 @@ namespace LiveRoku.Core {
                         this.RealRoomId = realRoomIdTemp;
                         this.RealRoomIdText = realRoomIdTextTemp;
                         this.FlvAddress = flvUrl;
-                        this.RoomInfo = biliApi.getRoomInfo (RealRoomId);
-                        Logger?.appendLine ("INFO", $"-->sw--> fetched room info at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
                         return true;
                     }
                 }
                 return false;
+            });
+        }
+
+        public Task fetchRoomInfoAsync() {
+            return Task.Run(() => {
+                if(RealRoomId == 0) {
+                    var realRoomIdTextTemp = biliApi.getRealRoomId(OriginRoomIdText);
+                    int realRoomIdTemp;
+                    if (int.TryParse(realRoomIdTextTemp, out realRoomIdTemp)) {
+                        this.RealRoomId = realRoomIdTemp;
+                    }
+                    else return;
+                }
+                this.RoomInfo = biliApi.getRoomInfo(RealRoomId);
+                Logger?.appendLine("INFO", $"Fetched room info.");
             });
         }
     }
