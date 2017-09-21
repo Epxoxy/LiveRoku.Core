@@ -54,6 +54,12 @@
         public override byte readByte () {
             return buf[readIndex++];
         }
+        public byte[] copyDiscardBytes(int size) {
+            byte[] bytes = new byte[size];
+            Array.Copy (buf, readIndex, bytes, 0, size);
+            readIndex += size;
+            return bytes;
+        }
         public override void readBytes (byte[] disbytes, int disstart, int len) {
             int size = disstart + len;
             for (int i = disstart; i < size; i++) {

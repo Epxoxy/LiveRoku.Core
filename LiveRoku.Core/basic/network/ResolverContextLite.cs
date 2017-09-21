@@ -40,11 +40,12 @@ namespace LiveRoku.Core {
                     }
                     int readSize = 0;
                     var cache = new byte[1024];
-                    var buffer = ByteBuffer.allocate (1024);
+                    var buffer = ByteBuffer.allocate (65535);
                     ctx.fireReadReady (buffer);
                     try {
                         while ((readSize = stream.Read (cache, 0, cache.Length)) > 0) {
                             buffer.writeBytes (cache, 0, readSize);
+                            System.Diagnostics.Debug.WriteLine("## read ## " + readSize);
                             ctx.fireRead (buffer);
                         }
                     } catch (Exception e) {

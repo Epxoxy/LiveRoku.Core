@@ -25,6 +25,7 @@
             readIndex = index;
         }
         //
+        public int readerIndex() => readIndex;
         public void markReaderIndex () => markReadIndex = readIndex;
         public void markWriterIndex () => markWriteIndex = writeIndex;
         public void resetReaderIndex () => readIndex = markReadIndex;

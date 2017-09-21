@@ -15,6 +15,7 @@ namespace LiveRoku.Core {
         public event StatusUpdated StatusUpdated;
         public VideoInfo LastestVideoCheckInfo { get; private set; }
         private string userAgent;
+        private long millsToCheck;
 
         public FlvDownloader (string userAgent, string savePath, int checkInterval = 300000) : base (savePath) {
             this.increment = checkInterval;
@@ -40,19 +41,23 @@ namespace LiveRoku.Core {
         protected override void onProgressUpdate (DownloadProgressChangedEventArgs e) {
             if (e.BytesReceived >= sizeToCheck && errorTimes < 5) {
                 sizeToCheck += increment;
-                Task.Run (() => {
-                    VideoInfo info = null;
-                    try {
-                        info = updateFlvInfo (base.savePath, e.BytesReceived);
-                        LastestVideoCheckInfo = info;
-                    } catch (Exception ex) {
-                        ex.printStackTrace ();
-                        ++errorTimes;
-                    }
-                    if (info != null) {
-                        VideoInfoChecked?.Invoke (info);
-                    }
-                }).ContinueWith (task => { task.Exception?.printStackTrace (); });
+                long current = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond);
+                if(millsToCheck >= current) {
+                    millsToCheck = current + 1000;
+                    Task.Run(() => {
+                        VideoInfo info = null;
+                        try {
+                            info = updateFlvInfo(base.savePath, e.BytesReceived);
+                            LastestVideoCheckInfo = info;
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                            ++errorTimes;
+                        }
+                        if (info != null) {
+                            VideoInfoChecked?.Invoke(info);
+                        }
+                    }).ContinueWith(task => { task.Exception?.printStackTrace(); });
+                }
             }
             BytesReceived?.Invoke (e.BytesReceived);
         }
