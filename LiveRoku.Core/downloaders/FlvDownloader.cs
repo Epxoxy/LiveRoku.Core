@@ -42,7 +42,7 @@ namespace LiveRoku.Core {
             if (e.BytesReceived >= sizeToCheck && errorTimes < 5) {
                 sizeToCheck += increment;
                 long current = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond);
-                if(millsToCheck >= current) {
+                if(millsToCheck <= current) {
                     millsToCheck = current + 1000;
                     Task.Run(() => {
                         VideoInfo info = null;
