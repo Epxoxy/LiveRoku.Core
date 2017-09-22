@@ -1,18 +1,15 @@
 using System;
-using System.ComponentModel;
 using System.Net;
 using System.Threading.Tasks;
 namespace LiveRoku.Core {
-    public delegate void VideoInfoChecked (VideoInfo args);
     public delegate void BytesReceived (long totalBytes);
-    public delegate void StatusUpdated (bool isRunning);
     internal class FlvDownloader : FileDownloaderBase {
 
         private long sizeToCheck;
         private readonly long increment = 300000;
-        public event VideoInfoChecked VideoInfoChecked;
         public event BytesReceived BytesReceived;
-        public event StatusUpdated StatusUpdated;
+        public Action<VideoInfo> VideoInfoChecked;
+        public Action<bool> IsRunningUpdated;
         public VideoInfo LastestVideoCheckInfo { get; private set; }
         private string userAgent;
         private long millsToCheck;
@@ -25,11 +22,11 @@ namespace LiveRoku.Core {
         protected override void onStarting () {
             sizeToCheck = increment;
             errorTimes = 0;
-            StatusUpdated?.Invoke (isRunning : true);
+            IsRunningUpdated?.Invoke (true);
         }
 
         protected override void onStopped () {
-            StatusUpdated?.Invoke (isRunning : false);
+            IsRunningUpdated?.Invoke (false);
         }
 
         protected override void initClient (WebClient client) {

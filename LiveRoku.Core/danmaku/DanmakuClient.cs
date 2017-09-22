@@ -14,23 +14,9 @@ namespace LiveRoku.Core {
 
         public bool isActive () => transform == null ? false : transform.isActive ();
 
-        public bool start (BiliApi api, int realRoomId) {
+        public bool start (String host, int port, int realRoomId) {
             lock (locker) {
                 if (isActive()) return true;
-                bool mayNotExist;
-                string host;
-                string portText;
-                int port;
-                if (!api.getDmServerAddr(realRoomId.ToString(), out host, out portText, out mayNotExist)) {
-                    if (mayNotExist)
-                        return false;
-                    //May exist, generate default address
-                    var hosts = BiliApi.Const.DefaultHosts;
-                    host = hosts[new Random().Next(hosts.Length)];
-                    port = BiliApi.Const.DefaultChatPort;
-                } else if (!int.TryParse(portText, out port)) {
-                    port = BiliApi.Const.DefaultChatPort;
-                }
                 //............
                 transform = new NetResolverLite();
                 transform.Resolvers.addLast(new KeepAliveHandler(realRoomId));

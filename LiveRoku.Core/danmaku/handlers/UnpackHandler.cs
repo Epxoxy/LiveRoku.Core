@@ -14,7 +14,7 @@ namespace LiveRoku.Core {
                 System.Diagnostics.Debug.WriteLine("## enter ##");
 
                 var readable = buf.ReadableBytes;
-                System.Diagnostics.Debug.WriteLine("cumulation " + readable);
+                System.Diagnostics.Debug.WriteLine("## cumulation " + readable);
 
                 var bytes = buf.copyDiscardBytes(readable);
                 buf.discardReadBytes();
@@ -26,10 +26,10 @@ namespace LiveRoku.Core {
                     var packet = decoder.decode(cumulation);
                     if (packet != null) {
                         cumulation.discardReadBytes();
-                        System.Diagnostics.Debug.WriteLine(packet);
+                        System.Diagnostics.Debug.WriteLine($"## {packet}");
                         Task.Run(() => ctx.fireRead(packet));
                     } else if (cumulation.readerIndex() == oldReaderIndex) {
-                        System.Diagnostics.Debug.WriteLine("nothing read");
+                        System.Diagnostics.Debug.WriteLine("## nothing read");
                         break;
                     }
                 }

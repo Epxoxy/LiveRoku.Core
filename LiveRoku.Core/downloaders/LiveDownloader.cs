@@ -25,6 +25,7 @@ namespace LiveRoku.Core {
         private readonly BiliApi biliApi; //API access
         private readonly FlvDownloader flvFetcher; //Download flv video
         private readonly DanmakuClient danmakuClient; //Download danmaku
+        private readonly EventSubmitHandler danmakuEvents;
         private DanmakuStorage danmakuStorage;
         private readonly IRequestModel model; //Provide base parameters
         private VideoInfo videoInfo;
@@ -36,6 +37,7 @@ namespace LiveRoku.Core {
             cancelMgr = new CancellationManager ();
             //Initialize Downloaders
             this.danmakuClient = new DanmakuClient ();
+            this.danmakuEvents = danmakuClient.Events;
             this.flvFetcher = new FlvDownloader (userAgent, null);
             //Initialize Handlers
             this.StatusBinders = new LowList<IStatusBinder> ();
@@ -47,22 +49,22 @@ namespace LiveRoku.Core {
             this.requestTimeout = requestTimeout;
             this.model = model;
             //Subscribe events
-            this.danmakuClient.Events.ErrorLog += appendErrorMsg;
-            this.danmakuClient.Events.DanmakuReceived += danmakuTransmit;
-            this.danmakuClient.Events.HotUpdated += hotUpdated;
+            this.danmakuEvents.OnLog = appendErrorMsg;
+            this.danmakuEvents.DanmakuReceived = onDanmaku;
+            this.danmakuEvents.HotUpdated = hotUpdated;
+            this.flvFetcher.VideoInfoChecked = videoChecked;
+            this.flvFetcher.IsRunningUpdated = downloadStatusUpdated;
             this.flvFetcher.BytesReceived += downloadSizeUpdated;
-            this.flvFetcher.VideoInfoChecked += videoChecked;
-            this.flvFetcher.StatusUpdated += onDownloadStatus;
         }
         public LiveDownloader (IRequestModel model, string userAgent):
             this (model, userAgent, 5000) { }
 
         private void purgeEvents () {
-            flvFetcher.BytesReceived -= downloadSizeUpdated;
             flvFetcher.BytesReceived -= onStreaming;
-            flvFetcher.VideoInfoChecked -= videoChecked;
-            flvFetcher.StatusUpdated -= onDownloadStatus;
-            danmakuClient.Events.purgeEvents ();
+            flvFetcher.BytesReceived -= downloadSizeUpdated;
+            flvFetcher.VideoInfoChecked = null;
+            flvFetcher.IsRunningUpdated = null;
+            danmakuEvents.purgeEvents ();
         }
 
         public void Dispose () {
@@ -72,19 +74,31 @@ namespace LiveRoku.Core {
             DanmakuResolvers?.clear ();
             LiveDataResolvers?.clear ();
         }
+        
+        public RoomInfo fetchRoomInfo(bool refresh) {
+            if (!IsRunning || refresh) {
+                if (settings == null) {
+                    int roomId;
+                    if (!int.TryParse(model.RoomId, out roomId)) return null;
+                    settings = new FetchBean(roomId, biliApi);
+                    settings.refreshAllAsync().Wait();
+                }
+                settings.fetchRoomInfoAsync().Wait();
+            }
+            return settings.RoomInfo;
+        }
+
+        //For extension
+        public object getExtra(string key) { return null; }
 
         public void stop (bool force = false) {
             if (IsRunning) {
                 IsRunning = false;
                 IsStreaming = false;
-                danmakuClient.Events.Closed -= reconnectOnError;
+                danmakuEvents.Closed = null;
                 flvFetcher.stop ();
                 danmakuClient.stop ();
-                if (danmakuStorage != null) {
-                    var temp = danmakuStorage;
-                    danmakuStorage = null;
-                    temp.stop (force);
-                }
+                danmakuStorage?.stop(force);
                 forEachByTaskWithDebug (StatusBinders, binder => {
                     binder.onStopped ();
                 });
@@ -122,7 +136,7 @@ namespace LiveRoku.Core {
                 settings.Logger = this;
                 isUpdated = await settings.refreshAllAsync ();
             }, cts.Token).ContinueWith (task => {
-                task.Exception?.printStackTrace ();
+                printException(task.Exception);
                 //Check if get it successful
                 if (isUpdated) {
                     settings.fetchRoomInfoAsync();
@@ -136,8 +150,7 @@ namespace LiveRoku.Core {
                     flvFetcher.updateSavePath (settings.FileFullName);
                     flvFetcher.BytesReceived -= onStreaming;
                     flvFetcher.BytesReceived += onStreaming;
-                    danmakuClient.Events.Closed -= reconnectOnError;
-                    danmakuClient.Events.Closed += reconnectOnError;
+                    danmakuEvents.Closed = reconnectOnError;
                     //All parameters ready
                     forEachByTaskWithDebug (StatusBinders, binder => {
                         binder.onWaiting ();
@@ -145,7 +158,9 @@ namespace LiveRoku.Core {
                     appendInfoMsg ($"All ready, fetch: {settings.FlvAddress}");
                     //All ready, start now
                     flvFetcher.start (settings.FlvAddress);
-                    danmakuClient.start (biliApi, settings.RealRoomId);
+                    Task.Run(() => {
+                        tryConnect(danmakuClient, biliApi, settings.RealRoomId);
+                    });
                 } else {
                     appendErrorMsg ($"Get value fail, RealRoomId : {settings.RealRoomIdText}");
                     stop ();
@@ -153,17 +168,21 @@ namespace LiveRoku.Core {
             });
         }
 
-        private void onDownloadStatus (bool isRunning) {
-            if (!isRunning) IsStreaming = false;
+        private void downloadStatusUpdated(bool downloadRunning) {
+            if (!downloadRunning) IsStreaming = false;
+            appendInfoMsg($"Flv download {(downloadRunning ? "started" : "stopped")}.");
             // this.stop();
         }
 
-        private void danmakuTransmit (DanmakuModel danmaku) {
+        private void onDanmaku(DanmakuModel danmaku) {
             if (!IsRunning/*May not come here*/) return;
             //TODO something here
             checkLiveStatus(danmaku);
+            if (IsStreaming && danmakuStorage != null && danmakuStorage.IsWriting) {
+                danmakuStorage.enqueue(danmaku);
+            }
+            //emit
             forEachByTaskWithDebug (DanmakuResolvers, resolver => {
-                //TODO something
                 resolver.Invoke (danmaku);
             });
         }
@@ -176,9 +195,11 @@ namespace LiveRoku.Core {
                 danmakuStorage?.stop ();
                 //Update live status
                 updateLiveStatus(false);
+                appendInfoMsg("Message received : Live End.");
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
                 updateLiveStatus(true);
+                appendInfoMsg("Message received : Live Start.");
                 if (settings.AutoStart && !flvFetcher.IsRunning) {
                     var cancellation = new CancellationTokenSource (requestTimeout);
                     cancelMgr.cancel ("autostart-fetch");
@@ -186,27 +207,27 @@ namespace LiveRoku.Core {
                     Task.Run (async () => {
                         var isUpdated = await settings.refreshAllAsync ();
                         if (isUpdated && IsRunning && IsLiveOn) {
+                            //Ensure downloader's newest state
                             flvFetcher.start (settings.FlvAddress);
                             appendInfoMsg ($"Flv address updated : {settings.FlvAddress}");
                         }
                         cancelMgr.remove ("autostart-fetch");
                     }, cancellation.Token).ContinueWith (task => {
-                        if (task.Exception != null) {
-                            task.Exception.printStackTrace ();
-                            appendErrorMsg (task.Exception.Message);
-                        }
-                    });
+                        printException(task.Exception);
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
         }
 
         private void updateLiveStatus(bool isLiveOn, bool raiseEvent = true) {
-            if (this.isLiveOn == isLiveOn) return;
-            this.isLiveOn = isLiveOn;
-            if (!raiseEvent) return;
-            forEachByTaskWithDebug(LiveDataResolvers, resolver => {
-                resolver.onStatusUpdate(isLiveOn);
-            });
+            if(this.isLiveOn != isLiveOn) {
+                this.isLiveOn = isLiveOn;
+                if (raiseEvent) {
+                    forEachByTaskWithDebug(LiveDataResolvers, resolver => {
+                        resolver.onStatusUpdate(isLiveOn);
+                    });
+                }
+            }
         }
 
         private void reconnectOnError (Exception e) {
@@ -215,10 +236,10 @@ namespace LiveRoku.Core {
             if (!IsRunning) return;
             appendInfoMsg ("Trying to reconnect to the danmaku server.");
             Task.Run (() => {
-                danmakuClient.start (biliApi, settings.RealRoomId);
+                tryConnect(danmakuClient, biliApi, settings.RealRoomId);
             }).ContinueWith (task => {
-                task.Exception?.printStackTrace ();
-            });
+                printException(task.Exception);
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private void hotUpdated (long popularity) {
@@ -259,14 +280,14 @@ namespace LiveRoku.Core {
                 if (settings.DanmakuNeed) {
                     string xmlPath = Path.ChangeExtension (settings.FileFullName, "xml");
                     var startTimestamp = Convert.ToInt64 (TimeHelper.totalMsToGreenTime (DateTime.UtcNow));
-                    danmakuStorage = new DanmakuStorage (xmlPath, startTimestamp, this, Encoding.UTF8);
+                    danmakuStorage = new DanmakuStorage (xmlPath, startTimestamp, Encoding.UTF8);
                     danmakuStorage.startAsync ();
                     appendInfoMsg ("Start danmaku storage.....");
                 }
                 //Start connect to danmaku server
                 if (!danmakuClient.isActive ()) {
                     appendInfoMsg ("Connect to danmaku server.....");
-                    danmakuClient.start (biliApi, settings.RealRoomId);
+                    tryConnect(danmakuClient, biliApi, settings.RealRoomId);
                 }
             });
             forEachByTaskWithDebug (StatusBinders, binder => {
@@ -283,46 +304,37 @@ namespace LiveRoku.Core {
             });
         }
 
-        public RoomInfo fetchRoomInfo(bool refresh) {
-            if (!IsRunning || refresh) {
-                if (settings == null) {
-                    int roomId;
-                    if (!int.TryParse(model.RoomId, out roomId)) return null;
-                    settings = new FetchBean(roomId, biliApi);
-                    settings.refreshAllAsync();
-                }
-                settings.fetchRoomInfoAsync();
+        private void tryConnect(DanmakuClient client, BiliApi biliApi, int realRoomId) {
+            BiliApi.ServerBean bean = null;
+            if (biliApi.tryGetValidDmServerBean(realRoomId.ToString(), out bean)){
+                client.start(bean.Host, bean.Port, realRoomId);
             }
-            return settings.RoomInfo;
         }
 
-        //For extension
-        public object getExtra(string key) { return null; }
-
+        #region Help methods below
+        //Help methods
         public void appendLine (string tag, string log) {
             forEachByTaskWithDebug (Loggers, logger => {
                 logger.appendLine (tag, log);
             });
         }
-        private void appendErrorMsg (string msg) => appendLine ("Error", msg);
+        private void appendErrorMsg (string msg) => appendLine ("ERROR", msg);
         private void appendInfoMsg (string msg) => appendLine ("INFO", msg);
-
-        #region Help methods below
-        //Help methods
-
+        
         private void printException (Exception e) {
             if (e == null) return;
             e.printStackTrace ();
+            appendErrorMsg(e.Message);
         }
 
         private void forEachByTaskWithDebug<T> (LowList<T> host, Action<T> action) where T : class {
-            Task.Run (() => {
-                host.forEachEx (action, error => {
-                    System.Diagnostics.Debug.WriteLine ($"[{typeof (T).Name}]-" + error.Message);
+            Task.Run(() => {
+                host.forEachEx(action, error => {
+                    System.Diagnostics.Debug.WriteLine($"[{typeof(T).Name}]-" + error.Message);
                 });
-            }).ContinueWith (task => {
-                task.Exception?.printStackTrace ();
-            });
+            }).ContinueWith( task => {
+                printException(task.Exception);
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private string formatTime (long ms) {

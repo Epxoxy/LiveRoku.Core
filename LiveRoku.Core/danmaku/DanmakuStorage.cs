@@ -10,7 +10,6 @@ namespace LiveRoku.Core {
         private const string XmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><i><chatserver>chat.bilibili.com</chatserver><chatid>0</chatid><mission>0</mission><maxlimit>0</maxlimit><source>k-v</source>";
         private const string XmlFooter = "</i>";
         private readonly ConcurrentQueue<DanmakuModel> danmakuQueue;
-        private WeakReference<LowList<DanmakuResolver>> resolvers;
         private string storagePath;
         private long nowTime;
         private int flushTime;
@@ -20,8 +19,7 @@ namespace LiveRoku.Core {
         private StreamWriter writer;
         public bool IsWriting { get; private set; }
 
-        public DanmakuStorage (string storagePath, long nowTime, IDanmakuSource source, Encoding encoding, int flushTime = 30000) {
-            this.resolvers = new WeakReference<LowList<DanmakuResolver>> (source.DanmakuResolvers);
+        public DanmakuStorage (string storagePath, long nowTime, Encoding encoding, int flushTime = 30000) {
             danmakuQueue = new ConcurrentQueue<DanmakuModel> ();
             this.storagePath = storagePath;
             this.nowTime = nowTime;
@@ -32,20 +30,11 @@ namespace LiveRoku.Core {
         public void startAsync () {
             if (IsWriting) return;
             IsWriting = true;
-            LowList<DanmakuResolver> resolversObj;
-            if (resolvers.TryGetTarget (out resolversObj)) {
-                resolversObj.remove (joinDanmaku);
-                resolversObj.add (joinDanmaku);
-                Task.Run(() => startWrite());
-            }else IsWriting = false;
+            startWrite();
         }
 
         public void stop (bool force = false) {
             IsWriting = false;
-            LowList<DanmakuResolver> resolversObj;
-            if (resolvers.TryGetTarget (out resolversObj)) {
-                resolversObj.remove (joinDanmaku);
-            }
             if (force) {
                 try {
                     writer.Close ();
@@ -56,7 +45,8 @@ namespace LiveRoku.Core {
             }
         }
 
-        private void joinDanmaku (DanmakuModel danmaku) {
+        public void enqueue(DanmakuModel danmaku) {
+            if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) return;
             danmakuQueue.Enqueue (danmaku);
         }
 
@@ -73,7 +63,7 @@ namespace LiveRoku.Core {
             while (IsWriting) {
                 try {
                     var danmaku = await dequeue ();
-                    if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) continue;
+                    if (danmaku == null) continue;
                     //TODO implements danmakuModel.ToString(datetime) method
                     writer.WriteLine (danmaku.ToString (nowTime));
                 } catch (Exception e) {
@@ -93,11 +83,10 @@ namespace LiveRoku.Core {
 
         private async Task<DanmakuModel> dequeue () {
             DanmakuModel result = null;
-            if (danmakuQueue.IsEmpty) {
+            while (danmakuQueue.IsEmpty) {
                 await Task.Delay (100);
-            } else {
-                while (!danmakuQueue.TryDequeue (out result)) { }
             }
+            while (!danmakuQueue.TryDequeue(out result)) { }
             return result;
         }
 

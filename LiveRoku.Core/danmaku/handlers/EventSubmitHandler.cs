@@ -1,18 +1,18 @@
 ﻿namespace LiveRoku.Core {
     using System;
     public class EventSubmitHandler : AbstractFlowResolver {
-        public event DanmakuReceivedHandler DanmakuReceived;
-        public event ConnectedHandler Connected;
-        public event DisconnectedHandler Closed;
-        public event HotUpdatedHandler HotUpdated;
-        public event LogHandler ErrorLog;
+        public Action<Base.DanmakuModel> DanmakuReceived;
+        public Action Connected;
+        public Action<Exception> Closed;
+        public Action<long> HotUpdated;
+        public Action<string> OnLog;
         
         public void purgeEvents () {
             DanmakuReceived = delegate { };
             Connected = delegate { };
             Closed = delegate { };
             HotUpdated = delegate { };
-            ErrorLog = delegate { };
+            OnLog = delegate { };
         }
 
         public override void onConnected (ITransformContext ctx) {
@@ -54,7 +54,7 @@
 
         public override void onException (ITransformContext ctx, Exception e) {
             System.Diagnostics.Debug.WriteLine (e.ToString ());
-            ErrorLog?.Invoke (e.Message);
+            OnLog?.Invoke (e.Message);
         }
 
         private bool tryGet<T> (object obj, out T value) where T : class {

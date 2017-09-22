@@ -3,7 +3,6 @@
 namespace LiveRoku.Core {
     internal class PacketDecoder {
         public object decode(ByteBuffer input) {
-            System.Diagnostics.Debug.WriteLine("decode packet");
             if (input == null || input.ReadableBytes < Packet.HeaderSize) {
                 System.Diagnostics.Debug.WriteLine("in.readableBytes() <= HeaderSize");
                 return null;

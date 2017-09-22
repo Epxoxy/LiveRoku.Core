@@ -22,6 +22,13 @@ namespace LiveRoku.Core {
             public const int DefaultChatPort = 2243;
         }
 
+        public class ServerBean {
+            public string Host { get; set; }
+            public int Port { get; set; }
+            public bool FetchOK { get; set; }
+            public bool MayNotExist { get; set; }
+        }
+
         public readonly string userAgent;
         private readonly ILogger logger;
         private readonly StatHelper statHelper;
@@ -32,11 +39,9 @@ namespace LiveRoku.Core {
             this.statHelper = statHelper;
         }
 
-        public bool getDmServerAddr (string roomId, out string url, out string port, out bool mayNotExist) {
+        public ServerBean getDmServerAddr (string roomId) {
+            var bean = new ServerBean();
             //Get real danmaku server url
-            url = string.Empty;
-            port = string.Empty;
-            mayNotExist = false;
             //Download xml file
             var client = getBaseWebClient ();
             string xmlText = null;
@@ -47,7 +52,7 @@ namespace LiveRoku.Core {
                 var errorResponse = e.Response as HttpWebResponse;
                 if (errorResponse != null && errorResponse.StatusCode == HttpStatusCode.NotFound) {
                     logger.appendLine ("ERROR", $"Maybe {roomId} is not a valid room id.");
-                    mayNotExist = true;
+                    bean.MayNotExist = true;
                 } else {
                     logger.appendLine ("ERROR", "Download cid xml fail : " + e.Message);
                 }
@@ -56,21 +61,40 @@ namespace LiveRoku.Core {
                 logger.appendLine ("ERROR", "Download cid xml fail : " + e.Message);
             }
             if (string.IsNullOrEmpty (xmlText)) {
-                return false;
+                return bean;
             }
 
             //Analyzing danmaku Xml
             XElement doc = null;
+            int port;
             try {
                 doc = XElement.Parse ("<root>" + xmlText + "</root>");
-                url = doc.Element ("dm_server").Value;
-                port = doc.Element ("dm_port").Value;
-                return true;
+                string hostText = doc.Element ("dm_server").Value;
+                string portText = doc.Element ("dm_port").Value;
+                if(int.TryParse(portText, out port)) {
+                    bean.Host = hostText;
+                    bean.Port = port;
+                    bean.FetchOK = true;
+                }
             } catch (Exception e) {
                 e.printStackTrace ();
                 logger.appendLine ("ERROR", "Analyzing XML fail : " + e.Message);
+            }
+            return bean;
+        }
+
+        public bool tryGetValidDmServerBean(string roomId, out ServerBean bean) {
+            bean = getDmServerAddr(roomId);
+            if (bean != null && bean.MayNotExist) {
                 return false;
             }
+            if (bean == null || !bean.FetchOK) {
+                //May exist, generate default address
+                var hosts = BiliApi.Const.DefaultHosts;
+                bean.Host = hosts[new Random().Next(hosts.Length)];
+                bean.Port = BiliApi.Const.DefaultChatPort;
+            }
+            return true;
         }
 
         public bool tryGetRoomIdAndUrl (string roomId, out string realRoomId, out string flvUrl) {
@@ -179,22 +203,24 @@ namespace LiveRoku.Core {
             try {
                 infoJson = wc.DownloadString (url);
                 var data = JObject.Parse (infoJson)["data"];
-                System.Diagnostics.Debug.WriteLine(infoJson);
+                System.Diagnostics.Debug.WriteLine("## " + infoJson);
                 //logger.appendLine ("Info", infoJson);
                 if (data != null && data.Type != JTokenType.Null && data.Type != JTokenType.Undefined &&
                     data.HasValues) {
-                    logger.appendLine ("_status", data.Value<string> ("_status"));
-                    logger.appendLine ("LiveStatus", data.Value<string> ("LIVE_STATUS"));
-                    logger.appendLine ("RoomTitle", data.Value<string> ("ROOMTITLE"));
+                    string statusText = data.Value<string>("_status");
+                    string liveStatusText = data.Value<string>("LIVE_STATUS");
+                    string title = data.Value<string>("ROOMTITLE");
 
                     LiveStatus status;
-                    Enum.TryParse (data.Value<string> ("LIVE_STATUS"), true, out status);
+                    Enum.TryParse (liveStatusText, true, out status);
                     var info = new RoomInfo ();
-                    info.IsOn = "on".Equals (data.Value<string> ("_status").ToLower ());
+                    info.IsOn = "on".Equals (statusText.ToLower ());
                     info.LiveStatus = status;
-                    info.Title = data.Value<string> ("ROOMTITLE");
+                    info.Title = title;
                     info.TimeLine = data.Value<int>("LIVE_TIMELINE");
                     info.Anchor = data.Value<string>("ANCHOR_NICK_NAME");
+                    logger.appendLine("INFO", $"LiveStatus {liveStatusText}, _status {statusText} ");
+                    logger.appendLine("RoomTitle", title);
                     return info;
                 }
             } catch (Exception e) {
