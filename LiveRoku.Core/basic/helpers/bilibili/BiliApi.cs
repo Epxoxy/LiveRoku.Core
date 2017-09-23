@@ -27,6 +27,7 @@ namespace LiveRoku.Core {
             public int Port { get; set; }
             public bool FetchOK { get; set; }
             public bool MayNotExist { get; set; }
+            public bool CanUseDefault { get; internal set; } = true;
         }
 
         public readonly string userAgent;
@@ -50,6 +51,8 @@ namespace LiveRoku.Core {
             } catch (WebException e) {
                 e.printStackTrace ();
                 var errorResponse = e.Response as HttpWebResponse;
+                if (e.Status == WebExceptionStatus.ConnectFailure)
+                    bean.CanUseDefault = false;
                 if (errorResponse != null && errorResponse.StatusCode == HttpStatusCode.NotFound) {
                     logger.appendLine ("ERROR", $"Maybe {roomId} is not a valid room id.");
                     bean.MayNotExist = true;
@@ -88,7 +91,7 @@ namespace LiveRoku.Core {
             if (bean != null && bean.MayNotExist) {
                 return false;
             }
-            if (bean == null || !bean.FetchOK) {
+            if (bean == null || (!bean.FetchOK && bean.CanUseDefault)) {
                 //May exist, generate default address
                 var hosts = BiliApi.Const.DefaultHosts;
                 bean.Host = hosts[new Random().Next(hosts.Length)];

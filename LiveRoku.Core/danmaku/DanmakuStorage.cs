@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using LiveRoku.Base;
+using System.Diagnostics.CodeAnalysis;
 
 namespace LiveRoku.Core {
     public class DanmakuStorage {
@@ -17,6 +18,7 @@ namespace LiveRoku.Core {
         private Encoding encoding;
         private FileStream writerFs;
         private StreamWriter writer;
+        private object locker = new object();
         public bool IsWriting { get; private set; }
 
         public DanmakuStorage (string storagePath, long nowTime, Encoding encoding, int flushTime = 30000) {
@@ -50,6 +52,7 @@ namespace LiveRoku.Core {
             danmakuQueue.Enqueue (danmaku);
         }
 
+        [SuppressMessage("Microsoft.Performance", "CS4014")]
         private async void startWrite () {
             try {
                 writerFs = new FileStream (storagePath, FileMode.Create);
@@ -59,13 +62,25 @@ namespace LiveRoku.Core {
                 e.printStackTrace ();
             }
 
-            startFlush ();
+            Task.Run(async () => {
+                while (IsWriting) {
+                    if (writer == null) break;
+                    lock (locker) {
+                        writer.Flush();
+                    }
+                    await Task.Delay(flushTime);
+                }
+            }).ContinueWith(task => {
+                task.Exception?.printStackTrace();
+            }, TaskContinuationOptions.OnlyOnFaulted);
             while (IsWriting) {
                 try {
                     var danmaku = await dequeue ();
                     if (danmaku == null) continue;
                     //TODO implements danmakuModel.ToString(datetime) method
-                    writer.WriteLine (danmaku.ToString (nowTime));
+                    lock (locker) {
+                        writer.WriteLine (danmaku.ToString (nowTime));
+                    }
                 } catch (Exception e) {
                     e.printStackTrace ();
                     continue;
@@ -89,18 +104,6 @@ namespace LiveRoku.Core {
             while (!danmakuQueue.TryDequeue(out result)) { }
             return result;
         }
-
-        private async void startFlush () {
-            try {
-                while (IsWriting) {
-                    if (writer == null) continue;
-                    await writer.FlushAsync ();
-                    await Task.Delay (flushTime);
-                }
-            } catch (Exception e) {
-                e.printStackTrace ();
-            }
-
-        }
+        
     }
 }

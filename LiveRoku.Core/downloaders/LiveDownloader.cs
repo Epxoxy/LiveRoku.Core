@@ -4,6 +4,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using LiveRoku.Base;
+using System.Net.NetworkInformation;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace LiveRoku.Core {
 
@@ -11,6 +14,58 @@ namespace LiveRoku.Core {
     public interface IDanmakuSource {
         LowList<DanmakuResolver> DanmakuResolvers { get; }
     }
+
+    public interface INetwordkWatcher {
+        bool IsEnabled { get; }
+        bool IsAvailable { get; }
+        void assumeAvailabily(bool available);
+        void attach(Action<bool> onNewNetworkAvailability);
+        void detach();
+        bool checkCanConnect(string hostNameOrAddress);
+    }
+
+    class NetworkWatcherProxy : INetwordkWatcher  {
+        public bool IsEnabled { get; private set; }
+        public bool IsAvailable { get; private set; }
+
+        private Action<bool> onNewNetworkAvailability;
+
+        public bool checkCanConnect(string hostNameOrAddress) {
+            try {
+                System.Net.Dns.GetHostEntry(hostNameOrAddress);
+                return true;
+            } catch {//Exception message is not a important part here
+                return false;
+            }
+        }
+
+        public void assumeAvailabily(bool available) {
+            this.IsAvailable = available;
+        }
+
+        public void attach(Action<bool> onNewNetworkAvailability) {
+            setWatchOrNot(true);
+            this.onNewNetworkAvailability = onNewNetworkAvailability;
+        }
+
+        public void detach() {
+            setWatchOrNot(false);
+            this.onNewNetworkAvailability = null;
+        }
+
+        private void setWatchOrNot(bool watchIt) {
+            IsEnabled = watchIt;
+            NetworkChange.NetworkAvailabilityChanged -= proxyEvent;
+            if (!watchIt) return;
+            NetworkChange.NetworkAvailabilityChanged += proxyEvent;
+        }
+
+        private void proxyEvent(object sender, NetworkAvailabilityEventArgs e) {
+            IsAvailable = e.IsAvailable;
+            onNewNetworkAvailability?.Invoke(e.IsAvailable);
+        }
+    }
+
     public class LiveDownloader : ILiveDownloader, ILogger, IDanmakuSource, IDisposable {
         public LowList<ILiveDataResolver> LiveDataResolvers { get; private set; }
         public LowList<IStatusBinder> StatusBinders { get; private set; }
@@ -21,6 +76,8 @@ namespace LiveRoku.Core {
         public long RecordSize { get; private set; }
         public bool IsLiveOn => isLiveOn;
 
+        private readonly Dictionary<string, object> extras = new Dictionary<string, object>();
+        private readonly INetwordkWatcher network = new NetworkWatcherProxy();
         private readonly CancellationManager cancelMgr;
         private readonly BiliApi biliApi; //API access
         private readonly FlvDownloader flvFetcher; //Download flv video
@@ -32,6 +89,7 @@ namespace LiveRoku.Core {
         private int requestTimeout;
         private FetchBean settings;
         private bool isLiveOn;
+        private long delayReconnectMs = 10; 
 
         public LiveDownloader (IRequestModel model, string userAgent, int requestTimeout) {
             cancelMgr = new CancellationManager ();
@@ -89,9 +147,56 @@ namespace LiveRoku.Core {
         }
 
         //For extension
-        public object getExtra(string key) { return null; }
+        public object getExtra(string key) {
+            if (extras.ContainsKey(key)) return extras[key];
+            return null;
+        }
 
-        public void stop (bool force = false) {
+        //For extension
+        public void setExtra(string key, object value) {
+            if (extras.ContainsKey(key)) {
+                extras[key] = value;
+            } else {
+                extras.Add(key, value);
+            }
+        }
+
+
+        public void stop(bool force = false) => stopImpl(force, false);
+
+        public void start (string ingore = null) {
+            if (IsRunning) return;
+            //Basic initialize
+            network.assumeAvailabily(true);
+            network.attach(onNetworkChanged);
+            IsRunning = true;
+            IsStreaming = false;
+            RecordSize = 0;
+            delayReconnectMs = 10;
+            videoInfo = new VideoInfo ();
+            updateLiveStatus(false, false);
+            //Preparing signal
+            forEachByTaskWithDebug (StatusBinders, binder => {
+                binder.onPreparing ();
+            });
+            //Basic parameters check
+            //Get running parameters
+            var roomIdText = model.RoomId;
+            var folder = model.Folder;
+            int roomId;
+            if (!int.TryParse (roomIdText, out roomId)) {
+                appendErrorMsg ("Wrong id.");
+                stop ();
+                return;
+            }
+            startImpl(roomId, folder);
+        }
+        
+        //Internal Impl
+        private void stopImpl(bool force, bool internalCall) {
+            if (!internalCall) {//Network watcher needless
+                network.detach();//detach now
+            }
             if (IsRunning) {
                 IsRunning = false;
                 IsStreaming = false;
@@ -105,27 +210,8 @@ namespace LiveRoku.Core {
             }
         }
 
-        public void start (string ingore = null) {
-            if (IsRunning) return;
-            IsRunning = true;
-            IsStreaming = false;
-            RecordSize = 0;
-            videoInfo = new VideoInfo ();
-            updateLiveStatus(false, false);
-            //Preparing signal
-            forEachByTaskWithDebug (StatusBinders, binder => {
-                binder.onPreparing ();
-            });
-            //Get running parameters
-            var roomIdText = model.RoomId;
-            var folder = model.Folder;
-            var format = model.FileFormat;
-            int roomId;
-            if (!int.TryParse (roomIdText, out roomId)) {
-                appendErrorMsg ("Wrong id.");
-                stop ();
-                return;
-            }
+        //Internal Impl
+        private void startImpl(int roomId, string folder) {
             //Prepare to start task
             //Cancel when no result back over five second
             var cts = new CancellationTokenSource (requestTimeout);
@@ -166,6 +252,18 @@ namespace LiveRoku.Core {
                     stop ();
                 }
             });
+        }
+        
+
+
+        //Stop or Start on network availability changed.
+        private void onNetworkChanged(bool available) {
+            appendInfoMsg($"Network Availability Change to ->  {available}");
+            if (!available) {
+                stopImpl(false, true);
+            } else if (!IsRunning) {
+                start();
+            }
         }
 
         private void downloadStatusUpdated(bool downloadRunning) {
@@ -233,11 +331,33 @@ namespace LiveRoku.Core {
         private void reconnectOnError (Exception e) {
             //TODO something here
             appendErrorMsg (e?.Message);
-            if (!IsRunning) return;
-            appendInfoMsg ("Trying to reconnect to the danmaku server.");
-            Task.Run (() => {
+            //Cancel exist reconnect action
+            cancelMgr.cancel("danmaku-server-fetch");
+            if (!IsRunning) {//donnot reconnect when download stopped.
+                return;
+            }
+            appendInfoMsg ("Trying to reconnect to the danmaku server after " + delayReconnectMs);
+            //set cancellation and start task.
+            var cancellation = new CancellationTokenSource();
+            cancelMgr.set("danmaku-server-fetch", cancellation);
+            Task.Run (async() => {
+                bool connectionOK = false;
+                long used = 3000;
+                await Task.Run(() => {
+                    var sw = Stopwatch.StartNew();
+                    connectionOK = network.checkCanConnect("live.bilibili.com");
+                    sw.Stop();
+                    used = sw.ElapsedMilliseconds;
+                }, new CancellationTokenSource(3000).Token);
+                if (delayReconnectMs > used) {
+                    await Task.Delay(TimeSpan.FromMilliseconds(delayReconnectMs - used));
+                }
+                if (connectionOK) {//increase delay only on good network
+                    delayReconnectMs += 1000;
+                }
                 tryConnect(danmakuClient, biliApi, settings.RealRoomId);
-            }).ContinueWith (task => {
+                cancelMgr.remove("danmaku-server-fetch");
+            }, cancellation.Token).ContinueWith (task => {
                 printException(task.Exception);
             }, TaskContinuationOptions.OnlyOnFaulted);
         }
