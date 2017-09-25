@@ -5,6 +5,7 @@ using System.Threading;
 namespace LiveRoku.Core {
     internal class CancellationManager {
         private Dictionary<string, CancellationTokenSource> ctsTemp;
+        private object lockHelper = new object();
         public CancellationManager() {
             ctsTemp = new Dictionary<string, CancellationTokenSource>();
         }
@@ -17,11 +18,28 @@ namespace LiveRoku.Core {
             }
         }
 
-        public void remove (string key) {
-            if (ctsTemp.ContainsKey (key)) {
-                ctsTemp.Remove (key);
+        public void cancelAll() {
+            lock (lockHelper) {
+                foreach (var key in ctsTemp.Keys) {
+                    cancel(key);
+                }
             }
         }
+
+        public void clear() {
+            lock (lockHelper) {
+                ctsTemp.Clear();
+            }
+        }
+
+        public void remove (string key) {
+            lock (lockHelper) {
+                if (ctsTemp.ContainsKey (key)) {
+                    ctsTemp.Remove(key);
+                }
+            }
+        }
+
         public void cancel (string key) {
             CancellationTokenSource exist = null;
             if (ctsTemp.TryGetValue (key, out exist)) {

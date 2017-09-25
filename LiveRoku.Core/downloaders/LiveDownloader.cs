@@ -85,6 +85,7 @@ namespace LiveRoku.Core {
         private readonly EventSubmitHandler danmakuEvents;
         private DanmakuStorage danmakuStorage;
         private readonly IRequestModel model; //Provide base parameters
+        private Action<DanmakuModel> onCheckLiveStatus;
         private VideoInfo videoInfo;
         private int requestTimeout;
         private FetchBean settings;
@@ -193,7 +194,7 @@ namespace LiveRoku.Core {
                 stop ();
                 return;
             }
-            startImpl(roomId, folder);
+            startImpl(roomId, folder, !isKeyTrue("flv-needless"));
         }
         
         //Internal Impl
@@ -201,6 +202,8 @@ namespace LiveRoku.Core {
             if (!internalCall) {//Network watcher needless
                 network.detach();//detach now
             }
+            cancelMgr.cancelAll();
+            cancelMgr.clear();
             if (IsRunning) {
                 IsRunning = false;
                 IsStreaming = false;
@@ -208,14 +211,19 @@ namespace LiveRoku.Core {
                 flvFetcher.stop ();
                 danmakuClient.stop ();
                 danmakuStorage?.stop(force);
+                appendInfoMsg("Downloader stopped.");
                 forEachByTaskWithDebug (StatusBinders, binder => {
                     binder.onStopped ();
                 });
             }
         }
 
+        private bool isKeyTrue(string key) {
+            return extras.ContainsKey(key) && extras[key] is bool && ((bool)extras[key]);
+        }
+
         //Internal Impl
-        private void startImpl(int roomId, string folder) {
+        private void startImpl(int roomId, string folder, bool videoNeed) {
             //Prepare to start task
             //Cancel when no result back over five second
             var cts = new CancellationTokenSource (requestTimeout);
@@ -236,18 +244,25 @@ namespace LiveRoku.Core {
                     settings.FileFullName = fileName;
                     settings.AutoStart = model.AutoStart;
                     settings.DanmakuNeed = model.DownloadDanmaku;
-                    //Create FlvDloader and subscribe event handlers
-                    flvFetcher.updateSavePath (settings.FileFullName);
-                    flvFetcher.BytesReceived -= onStreaming;
-                    flvFetcher.BytesReceived += onStreaming;
-                    danmakuEvents.Closed = reconnectOnError;
-                    //All parameters ready
-                    forEachByTaskWithDebug (StatusBinders, binder => {
-                        binder.onWaiting ();
-                    });
-                    appendInfoMsg ($"All ready, fetch: {settings.FlvAddress}");
                     //All ready, start now
-                    flvFetcher.start (settings.FlvAddress);
+                    if (videoNeed) {
+                        //Create FlvDloader and subscribe event handlers
+                        flvFetcher.updateSavePath(settings.FileFullName);
+                        flvFetcher.BytesReceived -= onStreaming;
+                        flvFetcher.BytesReceived += onStreaming;
+                        onCheckLiveStatus = checkLiveStatusForDownload;
+                    } else {
+                        onCheckLiveStatus = updateLiveStatusOnly;
+                    }
+                    danmakuEvents.Closed = reconnectOnError;
+                    appendInfoMsg($"All ready, fetch: {settings.FlvAddress}");
+                    //All parameters ready
+                    forEachByTaskWithDebug(StatusBinders, binder => {
+                        binder.onWaiting();
+                    });
+                    if(videoNeed) {
+                        flvFetcher.start(settings.FlvAddress);
+                    }
                     Task.Run(() => {
                         tryConnect(danmakuClient, biliApi, settings.RealRoomId);
                     });
@@ -279,7 +294,7 @@ namespace LiveRoku.Core {
         private void onDanmaku(DanmakuModel danmaku) {
             if (!IsRunning/*May not come here*/) return;
             //TODO something here
-            checkLiveStatus(danmaku);
+            onCheckLiveStatus?.Invoke(danmaku);
             if (IsStreaming && danmakuStorage != null && danmakuStorage.IsWriting) {
                 danmakuStorage.enqueue(danmaku);
             }
@@ -289,7 +304,19 @@ namespace LiveRoku.Core {
             });
         }
 
-        private void checkLiveStatus (DanmakuModel danmaku) {
+        private void updateLiveStatusOnly(DanmakuModel danmaku) {
+            if (MsgTypeEnum.LiveEnd == danmaku.MsgType) {
+                //Update live status
+                updateLiveStatus(false);
+                appendInfoMsg("Message received : Live End.");
+            } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
+                //Update live status
+                updateLiveStatus(true);
+                appendInfoMsg("Message received : Live Start.");
+            }
+        }
+
+        private void checkLiveStatusForDownload (DanmakuModel danmaku) {
             if (MsgTypeEnum.LiveEnd == danmaku.MsgType) {
                 cancelMgr.cancel ("autostart-fetch");
                 cancelMgr.remove ("autostart-fetch");
