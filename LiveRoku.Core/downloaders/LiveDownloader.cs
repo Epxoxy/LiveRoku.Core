@@ -350,32 +350,29 @@ namespace LiveRoku.Core {
                 appendErrorMsg("Retry time more than the max.");
                 return;
             }
-            appendInfoMsg ($"Trying to reconnect to danmaku server after {delayReconnectMs/1000d}s");
             //set cancellation and start task.
             var cancellation = new CancellationTokenSource();
             cancelMgr.set("danmaku-server-fetch", cancellation);
-            Task.Run (async() => {
-                bool connectionOK = false;
-                long used = 3000;
-                await Task.Run(() => {
-                    var sw = Stopwatch.StartNew();
-                    connectionOK = network.checkCanConnect("live.bilibili.com");
-                    sw.Stop();
-                    used = sw.ElapsedMilliseconds;
-                }, new CancellationTokenSource(3000).Token).ContinueWith(task => {
-                    task.Exception?.printStackTrace();
-                }, TaskContinuationOptions.OnlyOnFaulted);
+            bool connectionOK = false;
+            long used = 3000;
+            var cts = new CancellationTokenSource(3000);
+            Task.Run (() => {
+                var sw = Stopwatch.StartNew();
+                connectionOK = network.checkCanConnect("live.bilibili.com");
+                sw.Stop();
+                used = sw.ElapsedMilliseconds;
+            }, cts.Token).ContinueWith(async task => {
+                task.Exception?.printStackTrace();
                 if (delayReconnectMs > used) {
                     await Task.Delay(TimeSpan.FromMilliseconds(delayReconnectMs - used));
+                    appendInfoMsg($"Trying to reconnect to danmaku server after {(delayReconnectMs - used) / 1000d}s");
                 }
                 //increase delay
                 delayReconnectMs += (connectionOK ? 1000 : retryTimes * 2000);
                 retryTimes++;
                 tryConnect(danmakuClient, biliApi, settings.RealRoomId);
                 cancelMgr.remove("danmaku-server-fetch");
-            }, cancellation.Token).ContinueWith (task => {
-                printException(task.Exception);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            });
         }
 
         private void hotUpdated (long popularity) {
@@ -441,7 +438,7 @@ namespace LiveRoku.Core {
         }
 
         private void tryConnect(DanmakuClient client, BiliApi biliApi, int realRoomId) {
-            appendErrorMsg("Trying connect to damaku server.");
+            appendInfoMsg("Trying to connect to damaku server.");
             BiliApi.ServerBean bean = null;
             if (biliApi.tryGetValidDmServerBean(realRoomId.ToString(), out bean)){
                 client.start(bean.Host, bean.Port, realRoomId);
