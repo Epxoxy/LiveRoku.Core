@@ -89,7 +89,9 @@ namespace LiveRoku.Core {
         private int requestTimeout;
         private FetchBean settings;
         private bool isLiveOn;
-        private long delayReconnectMs = 10; 
+        private long delayReconnectMs = 500;
+        private int retryTimes = 0;
+        private int maxRetryTimes = 10;
 
         public LiveDownloader (IRequestModel model, string userAgent, int requestTimeout) {
             cancelMgr = new CancellationManager ();
@@ -110,6 +112,7 @@ namespace LiveRoku.Core {
             this.danmakuEvents.OnLog = appendErrorMsg;
             this.danmakuEvents.DanmakuReceived = onDanmaku;
             this.danmakuEvents.HotUpdated = hotUpdated;
+            this.danmakuEvents.Connected = onClientConnected;
             this.flvFetcher.VideoInfoChecked = videoChecked;
             this.flvFetcher.IsRunningUpdated = downloadStatusUpdated;
             this.flvFetcher.BytesReceived += downloadSizeUpdated;
@@ -172,7 +175,8 @@ namespace LiveRoku.Core {
             IsRunning = true;
             IsStreaming = false;
             RecordSize = 0;
-            delayReconnectMs = 10;
+            delayReconnectMs = 500;
+            retryTimes = 0;
             videoInfo = new VideoInfo ();
             updateLiveStatus(false, false);
             //Preparing signal
@@ -328,6 +332,12 @@ namespace LiveRoku.Core {
             }
         }
 
+        private void onClientConnected() {
+            appendInfoMsg ($"Connect to danmaku server ok.");
+            delayReconnectMs = 500;
+            retryTimes = 0;
+        }
+
         private void reconnectOnError (Exception e) {
             //TODO something here
             appendErrorMsg (e?.Message);
@@ -336,7 +346,11 @@ namespace LiveRoku.Core {
             if (!IsRunning) {//donnot reconnect when download stopped.
                 return;
             }
-            appendInfoMsg ("Trying to reconnect to the danmaku server after " + delayReconnectMs);
+            if (retryTimes > maxRetryTimes) {
+                appendErrorMsg("Retry time more than the max.");
+                return;
+            }
+            appendInfoMsg ($"Trying to reconnect to danmaku server after {delayReconnectMs/1000d}s");
             //set cancellation and start task.
             var cancellation = new CancellationTokenSource();
             cancelMgr.set("danmaku-server-fetch", cancellation);
@@ -348,13 +362,15 @@ namespace LiveRoku.Core {
                     connectionOK = network.checkCanConnect("live.bilibili.com");
                     sw.Stop();
                     used = sw.ElapsedMilliseconds;
-                }, new CancellationTokenSource(3000).Token);
+                }, new CancellationTokenSource(3000).Token).ContinueWith(task => {
+                    task.Exception?.printStackTrace();
+                }, TaskContinuationOptions.OnlyOnFaulted);
                 if (delayReconnectMs > used) {
                     await Task.Delay(TimeSpan.FromMilliseconds(delayReconnectMs - used));
                 }
-                if (connectionOK) {//increase delay only on good network
-                    delayReconnectMs += 1000;
-                }
+                //increase delay
+                delayReconnectMs += (connectionOK ? 1000 : retryTimes * 2000);
+                retryTimes++;
                 tryConnect(danmakuClient, biliApi, settings.RealRoomId);
                 cancelMgr.remove("danmaku-server-fetch");
             }, cancellation.Token).ContinueWith (task => {
@@ -425,9 +441,12 @@ namespace LiveRoku.Core {
         }
 
         private void tryConnect(DanmakuClient client, BiliApi biliApi, int realRoomId) {
+            appendErrorMsg("Trying connect to damaku server.");
             BiliApi.ServerBean bean = null;
             if (biliApi.tryGetValidDmServerBean(realRoomId.ToString(), out bean)){
                 client.start(bean.Host, bean.Port, realRoomId);
+            } else {
+                appendErrorMsg("Cannot get valid server address and port.");
             }
         }
 

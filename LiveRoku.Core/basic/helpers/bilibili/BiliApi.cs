@@ -88,7 +88,7 @@ namespace LiveRoku.Core {
 
         public bool tryGetValidDmServerBean(string roomId, out ServerBean bean) {
             bean = getDmServerAddr(roomId);
-            if (bean != null && bean.MayNotExist) {
+            if (bean != null && (bean.MayNotExist || !bean.CanUseDefault)) {
                 return false;
             }
             if (bean == null || (!bean.FetchOK && bean.CanUseDefault)) {
