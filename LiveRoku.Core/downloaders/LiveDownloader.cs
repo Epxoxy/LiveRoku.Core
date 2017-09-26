@@ -90,6 +90,7 @@ namespace LiveRoku.Core {
         private int requestTimeout;
         private FetchBean settings;
         private bool isLiveOn;
+        //settings
         private long delayReconnectMs = 500;
         private int retryTimes = 0;
         private int maxRetryTimes = 10;
