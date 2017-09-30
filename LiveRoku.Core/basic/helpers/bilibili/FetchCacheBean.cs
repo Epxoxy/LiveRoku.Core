@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace LiveRoku.Core {
-    internal class FetchBean {
+    internal class FetchCacheBean {
         public string OriginRoomIdText { get; private set; }
         public string RealRoomIdText { get; private set; }
         public int OriginRoomId { get; private set; }
@@ -18,7 +18,7 @@ namespace LiveRoku.Core {
         private readonly BiliApi biliApi;
         private object fetchLocker = new object();
 
-        public FetchBean (int originRoomId, BiliApi biliApi) {
+        public FetchCacheBean (int originRoomId, BiliApi biliApi) {
             this.OriginRoomId = originRoomId;
             this.OriginRoomIdText = originRoomId.ToString ();
             this.biliApi = biliApi;
@@ -28,15 +28,15 @@ namespace LiveRoku.Core {
             return Task.Run (() => {
                 var sw = new Stopwatch ();
                 sw.Start ();
-                Logger?.appendLine ("INFO", "-->sw--> start 00m:00s 000");
+                Logger.log(Level.Info, "-->sw--> start 00m:00s 000");
                 //Try to get real roomId
                 var realRoomIdTextTemp = biliApi.getRealRoomId (OriginRoomIdText);
-                Logger?.appendLine ("INFO", $"-->sw--> fetched real roomId at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                Logger.log(Level.Info, $"-->sw--> fetched real roomId at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
                 int realRoomIdTemp;
                 //Try to get flv url
                 if (!string.IsNullOrEmpty (realRoomIdTextTemp) && int.TryParse (realRoomIdTextTemp, out realRoomIdTemp)) {
                     var flvUrl = biliApi.getRealUrl (realRoomIdTextTemp);
-                    Logger?.appendLine ("INFO", $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                    Logger.log(Level.Info, $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
                     if (!string.IsNullOrEmpty (flvUrl)) {
                         this.RealRoomId = realRoomIdTemp;
                         this.RealRoomIdText = realRoomIdTextTemp;
@@ -59,7 +59,7 @@ namespace LiveRoku.Core {
                     else return;
                 }
                 this.RoomInfo = biliApi.getRoomInfo(RealRoomId);
-                Logger?.appendLine("INFO", $"Fetched room info.");
+                Logger?.log(Level.Info, $"Fetched room info.");
             });
         }
     }

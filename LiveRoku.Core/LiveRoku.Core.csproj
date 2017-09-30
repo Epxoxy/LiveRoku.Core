@@ -50,7 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="basic\helpers\bilibili\FetchBean.cs" />
+    <Compile Include="basic\helpers\bilibili\FetchCacheBean.cs" />
     <Compile Include="basic\helpers\CancellationManager.cs" />
     <Compile Include="basic\network\Utils.cs" />
     <Compile Include="danmaku\DanmakuClient.cs" />
@@ -66,7 +66,7 @@
     <Compile Include="danmaku\packet\PacketEncoder.cs" />
     <Compile Include="downloaders\FileDownloaderBase.cs" />
     <Compile Include="downloaders\FlvDownloader.cs" />
-    <Compile Include="downloaders\LiveDownloader.cs" />
+    <Compile Include="downloaders\LiveFetcher.cs" />
     <Compile Include="basic\helpers\bilibili\BiliApi.cs" />
     <Compile Include="basic\helpers\StatHelper.cs" />
     <Compile Include="basic\zneedless\WeakHelper.cs" />

@@ -54,14 +54,14 @@ namespace LiveRoku.Core {
                 if (e.Status == WebExceptionStatus.ConnectFailure)
                     bean.CanUseDefault = false;
                 if (errorResponse != null && errorResponse.StatusCode == HttpStatusCode.NotFound) {
-                    logger.appendLine ("ERROR", $"Maybe {roomId} is not a valid room id.");
+                    logger.log(Level.Error, $"Maybe {roomId} is not a valid room id.");
                     bean.MayNotExist = true;
                 } else {
-                    logger.appendLine ("ERROR", "Download cid xml fail : " + e.Message);
+                    logger.log(Level.Error, "Download cid xml fail : " + e.Message);
                 }
             } catch (Exception e) {
                 e.printStackTrace ();
-                logger.appendLine ("ERROR", "Download cid xml fail : " + e.Message);
+                logger.log(Level.Error, "Download cid xml fail : " + e.Message);
             }
             if (string.IsNullOrEmpty (xmlText)) {
                 return bean;
@@ -81,7 +81,7 @@ namespace LiveRoku.Core {
                 }
             } catch (Exception e) {
                 e.printStackTrace ();
-                logger.appendLine ("ERROR", "Analyzing XML fail : " + e.Message);
+                logger.log(Level.Error, "Analyzing XML fail : " + e.Message);
             }
             return bean;
         }
@@ -113,7 +113,7 @@ namespace LiveRoku.Core {
         }
 
         public string getRealRoomId (string originalRoomId) {
-            logger.appendLine ("INFO", "Trying to get real roomId");
+            logger.log(Level.Info, "Trying to get real roomId");
 
             var roomWebPageUrl = "http://live.bilibili.com/" + originalRoomId;
             var wc = new WebClient ();
@@ -125,7 +125,7 @@ namespace LiveRoku.Core {
             try {
                 roomHtml = wc.DownloadString (roomWebPageUrl);
             } catch (Exception e) {
-                logger.appendLine ("ERROR", "Open live page fail : " + e.Message);
+                logger.log(Level.Error, "Open live page fail : " + e.Message);
                 return null;
             }
 
@@ -133,11 +133,11 @@ namespace LiveRoku.Core {
             const string pattern = @"(?<=var ROOMID = )(\d+)(?=;)";
             var cols = Regex.Matches (roomHtml, pattern);
             foreach (Match mat in cols) {
-                logger.appendLine ("INFO", "Real Room Id : " + mat.Value);
+                logger.log(Level.Info, "Real Room Id : " + mat.Value);
                 return mat.Value;
             }
 
-            logger.appendLine ("ERROR", "Fail Get Real Room Id");
+            logger.log(Level.Error, "Fail Get Real Room Id");
             return null;
         }
 
@@ -147,7 +147,7 @@ namespace LiveRoku.Core {
                 realUrl = getRealUrl (realRoomId);
             } catch (Exception e) {
                 e.printStackTrace ();
-                logger.appendLine ("ERROR", "Get real url fail, Msg : " + e.Message);
+                logger.log(Level.Error, "Get real url fail, Msg : " + e.Message);
                 return false;
             }
             return !string.IsNullOrEmpty (realUrl);
@@ -155,7 +155,7 @@ namespace LiveRoku.Core {
 
         public string getRealUrl (string roomId) {
             if (roomId == null) {
-                logger.appendLine ("ERROR", "Invalid operation, No roomId");
+                logger.log(Level.Error, "Invalid operation, No roomId");
                 return string.Empty;
                 throw new Exception ("No roomId");
             }
@@ -168,7 +168,7 @@ namespace LiveRoku.Core {
             try {
                 xmlText = wc.DownloadString (apiUrl);
             } catch (Exception e) {
-                logger.appendLine ("ERROR", "Fail sending analysis request : " + e.Message);
+                logger.log(Level.Error, "Fail sending analysis request : " + e.Message);
                 throw e;
             }
 
@@ -179,17 +179,17 @@ namespace LiveRoku.Core {
                 var result = playUrlXml.XPathSelectElement ("/video/result");
                 //Get analyzing result
                 if (result == null || !"suee".Equals (result.Value)) { //Same to use != for string type
-                    logger.appendLine ("ERROR", "Analyzing url address fail");
+                    logger.log(Level.Error, "Analyzing url address fail");
                     throw new Exception ("No Avaliable download url in xml information.");
                 }
                 realUrl = playUrlXml.XPathSelectElement ("/video/durl/url").Value;
             } catch (Exception e) {
                 e.printStackTrace ();
-                logger.appendLine ("ERROR", "Analyzing XML fail : " + e.Message);
+                logger.log(Level.Error, "Analyzing XML fail : " + e.Message);
                 throw e;
             }
             if (!string.IsNullOrEmpty (realUrl)) {
-                logger.appendLine ("INFO", "Analyzing url address successful : " + realUrl);
+                logger.log(Level.Info, "Analyzing url address successful : " + realUrl);
             }
             return realUrl;
         }
@@ -207,7 +207,7 @@ namespace LiveRoku.Core {
                 infoJson = wc.DownloadString (url);
                 var data = JObject.Parse (infoJson)["data"];
                 System.Diagnostics.Debug.WriteLine("## " + infoJson);
-                //logger.appendLine ("Info", infoJson);
+                //logger.log(Level.Info, infoJson);
                 if (data != null && data.Type != JTokenType.Null && data.Type != JTokenType.Undefined &&
                     data.HasValues) {
                     string statusText = data.Value<string>("_status");
@@ -222,12 +222,12 @@ namespace LiveRoku.Core {
                     info.Title = title;
                     info.TimeLine = data.Value<int>("LIVE_TIMELINE");
                     info.Anchor = data.Value<string>("ANCHOR_NICK_NAME");
-                    logger.appendLine("INFO", $"LiveStatus {liveStatusText}, _status {statusText} ");
-                    logger.appendLine("RoomTitle", title);
+                    logger.log(Level.Info, $"LiveStatus {liveStatusText}, _status {statusText} ");
+                    logger.log(Level.Info, $"RoomTitle {title}");
                     return info;
                 }
             } catch (Exception e) {
-                logger.appendLine ("ERROR", "Open live page fail : " + e.Message);
+                logger.log(Level.Error, "Open live page fail : " + e.Message);
                 e.printStackTrace();
             }
             return null;
