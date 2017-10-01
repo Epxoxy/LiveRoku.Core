@@ -336,6 +336,8 @@ namespace LiveRoku.Core {
                             //Ensure downloader's newest state
                             var fileName = formatFileName(settings.Folder, settings.RealRoomIdText, original);
                             settings.FileFullName = fileName;
+                            flvFetcher.BytesReceived -= onStreaming;
+                            flvFetcher.BytesReceived += onStreaming;
                             flvFetcher.updateSavePath(fileName);
                             flvFetcher.start (settings.FlvAddress);
                             Logger.log(Level.Info,$"Flv address updated : {settings.FlvAddress}");
