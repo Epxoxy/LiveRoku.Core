@@ -30,7 +30,9 @@ namespace LiveRoku.Core {
         }
 
         public void startAsync () {
-            if (IsWriting) return;
+            lock (locker) {
+                if (IsWriting) return;
+            }
             IsWriting = true;
             startWrite();
         }

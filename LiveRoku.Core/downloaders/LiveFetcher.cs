@@ -235,7 +235,7 @@ namespace LiveRoku.Core {
                 //Check if get it successful
                 if (isUpdated) {
                     settings.fetchRoomInfoAsync();
-                    var fileName = Path.Combine (folder, original.formatFileName (settings.RealRoomIdText));
+                    var fileName = formatFileName(folder, settings.RealRoomIdText, original);
                     //complete model
                     settings.Folder = folder;
                     settings.FileFullName = fileName;
@@ -334,6 +334,9 @@ namespace LiveRoku.Core {
                         var isUpdated = await settings.refreshAllAsync ();
                         if (isUpdated && IsRunning && IsLiveOn) {
                             //Ensure downloader's newest state
+                            var fileName = formatFileName(settings.Folder, settings.RealRoomIdText, original);
+                            settings.FileFullName = fileName;
+                            flvFetcher.updateSavePath(fileName);
                             flvFetcher.start (settings.FlvAddress);
                             Logger.log(Level.Info,$"Flv address updated : {settings.FlvAddress}");
                         }
@@ -473,6 +476,9 @@ namespace LiveRoku.Core {
 
         #region Help methods below
         //Help methods
+        private string formatFileName(string folder, string roomId, IFetchSettings formatter) {
+            return Path.Combine(folder, formatter.formatFileName(roomId));
+        }
 
         private bool isKeyTrue(Dictionary<string, object> dict, string key) {
             return dict.ContainsKey(key) && dict[key] is bool && ((bool)dict[key]);
