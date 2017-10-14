@@ -18,25 +18,29 @@ namespace LiveRoku.Core {
         private readonly BiliApi biliApi;
         private object fetchLocker = new object();
 
-        public FetchCacheBean (int originRoomId, BiliApi biliApi) {
+        public FetchCacheBean(int originRoomId, BiliApi biliApi, ILogger logger) {
             this.OriginRoomId = originRoomId;
             this.OriginRoomIdText = originRoomId.ToString ();
             this.biliApi = biliApi;
+            this.Logger = logger;
+        }
+
+        public FetchCacheBean (int originRoomId, BiliApi biliApi) : this(originRoomId, biliApi, null) {
         }
 
         public Task<bool> refreshAllAsync () {
             return Task.Run (() => {
                 var sw = new Stopwatch ();
                 sw.Start ();
-                Logger.log(Level.Info, "-->sw--> start 00m:00s 000");
+                Logger?.log(Level.Info, "-->sw--> start 00m:00s 000");
                 //Try to get real roomId
                 var realRoomIdTextTemp = biliApi.getRealRoomId (OriginRoomIdText);
-                Logger.log(Level.Info, $"-->sw--> fetched real roomId at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                Logger?.log(Level.Info, $"-->sw--> fetched real roomId at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
                 int realRoomIdTemp;
                 //Try to get flv url
                 if (!string.IsNullOrEmpty (realRoomIdTextTemp) && int.TryParse (realRoomIdTextTemp, out realRoomIdTemp)) {
                     var flvUrl = biliApi.getRealUrl (realRoomIdTextTemp);
-                    Logger.log(Level.Info, $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                    Logger?.log(Level.Info, $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
                     if (!string.IsNullOrEmpty (flvUrl)) {
                         this.RealRoomId = realRoomIdTemp;
                         this.RealRoomIdText = realRoomIdTextTemp;

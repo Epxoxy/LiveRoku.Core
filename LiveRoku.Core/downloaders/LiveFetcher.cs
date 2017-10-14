@@ -135,7 +135,7 @@ namespace LiveRoku.Core {
                 if (settings == null) {
                     int roomId;
                     if (!int.TryParse(original.RoomId, out roomId)) return null;
-                    settings = new FetchCacheBean(roomId, biliApi);
+                    settings = new FetchCacheBean(roomId, biliApi, Logger);
                     settings.refreshAllAsync().Wait();
                 }
                 settings.fetchRoomInfoAsync().Wait();
@@ -227,8 +227,7 @@ namespace LiveRoku.Core {
             //Prepare real roomId and flv url
             bool isUpdated = false;
             Task.Run (async () => {
-                settings = new FetchCacheBean (roomId, biliApi);
-                settings.Logger = Logger;
+                settings = new FetchCacheBean (roomId, biliApi, Logger);
                 isUpdated = await settings.refreshAllAsync ();
             }, cts.Token).ContinueWith (task => {
                 printException(task.Exception);
