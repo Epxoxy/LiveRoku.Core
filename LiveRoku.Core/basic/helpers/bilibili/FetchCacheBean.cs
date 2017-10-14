@@ -41,6 +41,7 @@ namespace LiveRoku.Core {
                 if (!string.IsNullOrEmpty (realRoomIdTextTemp) && int.TryParse (realRoomIdTextTemp, out realRoomIdTemp)) {
                     var flvUrl = biliApi.getRealUrl (realRoomIdTextTemp);
                     Logger?.log(Level.Info, $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                    sw.Stop();
                     if (!string.IsNullOrEmpty (flvUrl)) {
                         this.RealRoomId = realRoomIdTemp;
                         this.RealRoomIdText = realRoomIdTextTemp;
@@ -48,6 +49,7 @@ namespace LiveRoku.Core {
                         return true;
                     }
                 }
+                sw.Stop();
                 return false;
             });
         }
