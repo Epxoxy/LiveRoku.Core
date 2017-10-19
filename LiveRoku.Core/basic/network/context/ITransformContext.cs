@@ -2,7 +2,7 @@
 
     public interface ITransform {
         bool isActive ();
-        void connectAsync (string host, int port);
+        System.Threading.Tasks.Task connectAsync (string host, int port);
         bool writeAndFlush (byte[] data);
         bool write (byte[] data);
         bool flush ();

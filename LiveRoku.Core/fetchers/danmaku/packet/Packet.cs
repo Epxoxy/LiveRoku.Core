@@ -13,13 +13,12 @@
         public string payload;
         public int payloadLength;
 
-        
         public static Packet packSimple (int msgType, string payload) {
-            return new Packet{
-                devType = 1,
-                    packetType = msgType,
-                    device = 1,
-                    payload = payload
+            return new Packet {
+            devType = 1,
+            packetType = msgType,
+            device = 1,
+            payload = payload
             };
         }
 

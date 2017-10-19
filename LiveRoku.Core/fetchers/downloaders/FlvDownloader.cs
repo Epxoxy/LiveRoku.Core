@@ -5,14 +5,14 @@ namespace LiveRoku.Core {
     public delegate void BytesReceived (long totalBytes);
     internal class FlvDownloader : FileDownloaderBase {
 
-        private long sizeToCheck;
-        private readonly long increment = 300000;
         public event BytesReceived BytesReceived;
         public Action<VideoInfo> VideoInfoChecked;
         public Action<bool> IsRunningUpdated;
         public VideoInfo LastestVideoCheckInfo { get; private set; }
+        private readonly long increment = 300000;
         private string userAgent;
         private long millsToCheck;
+        private long sizeToCheck;
 
         public FlvDownloader (string userAgent, string savePath, int checkInterval = 300000) : base (savePath) {
             this.increment = checkInterval;
@@ -39,21 +39,21 @@ namespace LiveRoku.Core {
             if (e.BytesReceived >= sizeToCheck && errorTimes < 5) {
                 sizeToCheck += increment;
                 long current = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond);
-                if(millsToCheck <= current) {
+                if (millsToCheck <= current) {
                     millsToCheck = current + 1000;
-                    Task.Run(() => {
+                    Task.Run (() => {
                         VideoInfo info = null;
                         try {
-                            info = updateFlvInfo(base.savePath, e.BytesReceived);
+                            info = updateFlvInfo (base.savePath, e.BytesReceived);
                             LastestVideoCheckInfo = info;
                         } catch (Exception ex) {
-                            ex.printStackTrace();
+                            ex.printStackTrace ();
                             ++errorTimes;
                         }
                         if (info != null) {
-                            VideoInfoChecked?.Invoke(info);
+                            VideoInfoChecked?.Invoke (info);
                         }
-                    }).ContinueWith(task => { task.Exception?.printStackTrace(); });
+                    }).ContinueWith (task => { task.Exception?.printStackTrace (); });
                 }
             }
             BytesReceived?.Invoke (e.BytesReceived);

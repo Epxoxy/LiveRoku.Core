@@ -2,11 +2,11 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Net;
-using LiveRoku.Base;
-
+using System.Threading.Tasks;
 namespace LiveRoku.Core {
-    internal abstract class FileDownloaderBase : IDownloader {
+    internal abstract class FileDownloaderBase {
         public bool IsRunning { get; private set; }
+        public Action OnDownloadCompleted;
 
         private WebClient client;
         protected string savePath;
@@ -21,8 +21,8 @@ namespace LiveRoku.Core {
             return true;
         }
 
-        public void start (string uri) {
-            if (IsRunning) return;
+        public Task startAsync (string uri) {
+            if (IsRunning) return Task.FromResult (false);
             IsRunning = true;
             onStarting ();
             client = new WebClient ();
@@ -32,15 +32,16 @@ namespace LiveRoku.Core {
             //TODO Ensure Path Created. 
             if (!checkFolder ()) {
                 stop ();
-                return;
+                return Task.FromResult (false);
             }
-            client.DownloadFileTaskAsync (new Uri (uri), savePath).ContinueWith (task => {
+            return client.DownloadFileTaskAsync (new Uri (uri), savePath).ContinueWith (task => {
                 stop ();
+                OnDownloadCompleted?.Invoke ();
                 task.Exception?.printStackTrace ();
             });
         }
 
-        public void stop (bool force = false) {
+        public void stop () {
             if (IsRunning) {
                 IsRunning = false;
                 if (client != null) {

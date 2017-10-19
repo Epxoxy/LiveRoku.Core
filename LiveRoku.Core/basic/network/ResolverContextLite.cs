@@ -11,15 +11,15 @@ namespace LiveRoku.Core {
         private NetworkStream stream;
         public INodeFlow Resolvers => ctx;
         private HeadNodeContextLite ctx;
-        private object locker = new object();
+        private object locker = new object ();
 
         public NetResolverLite () {
             ctx = new HeadNodeContextLite (this);
         }
 
-        public void connectAsync (string host, int port) {
+        public Task connectAsync (string host, int port) {
             lock (locker) {
-                if (isAlive) return;
+                if (isAlive) return Task.FromResult (false);
                 isAlive = true;
             }
             client = new TcpClient ();
@@ -27,12 +27,19 @@ namespace LiveRoku.Core {
                 client.Connect (host, port);
                 stream = client.GetStream ();
             } catch (Exception e) {
-                close ();
+                try {
+                    stream.Close ();
+                    client.Close ();
+                    stream = null;
+                    client = null;
+                } catch (Exception e2) {
+                    e2.printStackTrace ();
+                }
                 ctx.fireException (e);
-                return;
+                return Task.FromResult (false);
             }
             ctx.fireConnected ();
-            Task.Run (async () => {
+            return Task.Run (async () => {
                 while (isAlive && isOnline (client)) {
                     if (!stream.DataAvailable) {
                         await Task.Delay (100);
@@ -45,7 +52,7 @@ namespace LiveRoku.Core {
                     try {
                         while ((readSize = stream.Read (cache, 0, cache.Length)) > 0) {
                             buffer.writeBytes (cache, 0, readSize);
-                            System.Diagnostics.Debug.WriteLine("## read ## " + readSize);
+                            System.Diagnostics.Debug.WriteLine ("## read ## " + readSize);
                             ctx.fireRead (buffer);
                         }
                     } catch (Exception e) {
@@ -101,11 +108,11 @@ namespace LiveRoku.Core {
             try {
                 var temp = client;
                 client = null;
-                temp.Close();
-                ctx.fireClosed(null);
+                temp.Close ();
+                ctx.fireClosed (null);
             } catch (Exception e) {
-                e.printStackTrace();
-                ctx.fireException(e);
+                e.printStackTrace ();
+                ctx.fireException (e);
             }
         }
 
@@ -114,6 +121,7 @@ namespace LiveRoku.Core {
     public interface INodeFlow {
         void addLast (IFlowResolver resolver);
         void remove (IFlowResolver resolver);
+        void clear ();
     }
 
     internal class HeadNodeContextLite : WrappedFlowNodeContext, INodeFlow {
@@ -144,6 +152,10 @@ namespace LiveRoku.Core {
                 previous = current;
                 current = current.Next;
             }
+        }
+
+        public void clear () {
+            this.Next = null;
         }
 
         public override void fireConnected () => Task.Run (() => base.fireConnected ());

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace LiveRoku.Core {
 
@@ -42,7 +43,7 @@ namespace LiveRoku.Core {
         }
 
         public bool isActive () => transform.isActive ();
-        public void connectAsync (string host, int port) => transform.connectAsync (host, port);
+        public Task connectAsync (string host, int port) => transform.connectAsync (host, port);
         public bool writeAndFlush (byte[] data) => transform.writeAndFlush (data);
         public bool write (byte[] data) => transform.write (data);
         public bool flush () => transform.flush ();
