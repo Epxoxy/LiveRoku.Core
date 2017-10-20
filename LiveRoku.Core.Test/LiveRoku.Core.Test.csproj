@@ -32,6 +32,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>LiveRoku.Core.Test.Program</StartupObject>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="LiveRoku.Base">
       <HintPath>..\LiveRoku.Core\LiveRoku.Base.dll</HintPath>
