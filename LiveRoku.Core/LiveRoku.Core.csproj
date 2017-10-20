@@ -95,7 +95,6 @@
   <ItemGroup>
     <Content Include="basic\documents\getServer.txt" />
     <Content Include="basic\documents\infojson.txt" />
-    <Content Include="LiveRoku.Base.dll" />
     <Content Include="basic\media\MediaInfo.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
