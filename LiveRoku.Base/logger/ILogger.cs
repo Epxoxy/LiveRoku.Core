@@ -1,6 +1,6 @@
-namespace LiveRoku.Base {
+namespace LiveRoku.Base.Logger {
     public interface ILogger {
-        LowList<ILogHandler> LogHandlers { get; }
+        ILowList<ILogHandler> LogHandlers { get; }
         void log (Level level, string message);
     }
 }

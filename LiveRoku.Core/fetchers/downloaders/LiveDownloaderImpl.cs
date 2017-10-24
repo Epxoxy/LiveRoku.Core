@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using LiveRoku.Base;
+using LiveRoku.Base.Logger;
 namespace LiveRoku.Core {
     internal class LiveDownloaderImpl {
         public bool IsStarted { get; private set; }
@@ -25,6 +26,7 @@ namespace LiveRoku.Core {
             this.videoFetcher.OnDownloadCompleted = throwMission;
             this.videoFetcher.BytesReceived += downloadSizeUpdated;
         }
+
         public void reset () {
             stop (true);
             this.videoInfo = null;
@@ -32,6 +34,7 @@ namespace LiveRoku.Core {
             this.IsStarted = false;
             this.IsStreaming = false;
         }
+
         public Task download (string flvAddress, string fileFullName, bool dmRequired) {
             if (IsStarted) {
                 return Task.FromResult (false);
@@ -65,7 +68,7 @@ namespace LiveRoku.Core {
         }
 
         public void danmakuToLocal (DanmakuModel danmaku) {
-            if (IsStreaming && dmWriter != null && dmWriter.IsRunning) {
+            if (IsStreaming && dmWriter?.IsRunning == true) {
                 dmWriter.enqueue (danmaku);
             }
         }
@@ -123,7 +126,7 @@ namespace LiveRoku.Core {
         }
 
         private Task activeWriteDanmaku () {
-            var startTimestamp = Convert.ToInt64 (TimeHelper.totalMsToGreenTime (DateTime.UtcNow));
+            var startTimestamp = Convert.ToInt64 (DateTime.UtcNow.totalMsToGreenTime ());
             em.Logger.log (Level.Info, "Start danmaku storage.....");
             return dmWriter.startAsync (record.XMLObjectName, startTimestamp);
         }

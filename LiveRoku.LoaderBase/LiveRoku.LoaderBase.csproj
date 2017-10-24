@@ -1,16 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{D0364294-6F2D-403A-A329-A292318F7D63}</ProjectGuid>
+    <ProjectGuid>{D3E71283-9AEB-423B-AA5E-29B747A4EA82}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>LiveRoku.Base</RootNamespace>
-    <AssemblyName>LiveRoku.Base</AssemblyName>
+    <RootNamespace>LiveRoku.LoaderBase</RootNamespace>
+    <AssemblyName>LiveRoku.LoaderBase</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,6 +31,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -40,38 +44,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="fetcher\handler\DanmakuResolver.cs" />
-    <Compile Include="fetcher\handler\LiveProgressBinderBase.cs" />
-    <Compile Include="fetcher\handler\StatusBinderBase.cs" />
-    <Compile Include="fetcher\handler\ILiveProgressBinder.cs" />
-    <Compile Include="fetcher\IMission.cs" />
-    <Compile Include="logger\ILogHandler.cs" />
-    <Compile Include="logger\ILogger.cs" />
-    <Compile Include="setting\AbstractSettingsBase.cs" />
-    <Compile Include="setting\EasySettings.cs" />
-    <Compile Include="model\ILowList.cs" />
-    <Compile Include="setting\ISettings.cs" />
-    <Compile Include="setting\ISettingsBase.cs" />
-    <Compile Include="plugin\IPlugin.cs" />
-    <Compile Include="fetcher\handler\IStatusBinder.cs" />
-    <Compile Include="fetcher\ILiveFetcher.cs" />
-    <Compile Include="logger\Level.cs" />
-    <Compile Include="fetcher\IFetchArgsHost.cs" />
-    <Compile Include="model\DanmakuModel.cs" />
-    <Compile Include="model\GiftRank.cs" />
-    <Compile Include="model\IRoomInfo.cs" />
-    <Compile Include="plugin\IPluginDescriptor.cs" />
-    <Compile Include="plugin\IPluginHost.cs" />
-    <Compile Include="plugin\PluginDescriptor.cs" />
-    <Compile Include="plugin\attribute\PluginSettingAttribute.cs" />
+    <Compile Include="Bootstrap.cs" />
+    <Compile Include="helpers\FileHelper.cs" />
+    <Compile Include="LoadContextBase.cs" />
+    <Compile Include="PluginConfiguration.cs" />
+    <Compile Include="helpers\PluginExtension.cs" />
+    <Compile Include="SettingItemCollection.cs" />
+    <Compile Include="SettingItem.cs" />
+    <Compile Include="LoadContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LiveRoku.Base\LiveRoku.Base.csproj">
+      <Project>{d0364294-6f2d-403a-a329-a292318f7d63}</Project>
+      <Name>LiveRoku.Base</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>

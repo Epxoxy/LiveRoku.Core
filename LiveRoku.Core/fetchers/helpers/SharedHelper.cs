@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading.Tasks;
 
 namespace LiveRoku.Core {
     internal static class SharedHelper {
@@ -11,23 +10,37 @@ namespace LiveRoku.Core {
                 return false;
             }
         }
-        public static void printOn (this Exception e, Base.ILogger logger) {
+        public static void printOn (this Exception e, Base.Logger.ILogger logger) {
             if (e == null) return;
             e.printStackTrace ();
-            logger.log (Base.Level.Error, e.Message);
+            logger.log (Base.Logger.Level.Error, e.Message);
         }
-        public static void forEachHideExAsync<T> (this Base.LowList<T> host, Action<T> action, Base.ILogger logger) where T : class {
-            host.forEachSafelyAsync (action, error => {
-                System.Diagnostics.Debug.WriteLine ($"[{typeof (T).Name}]-" + error.Message);
-            }).ContinueWith (task => {
-                task.Exception?.printOn (logger);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+
+
+        public static void clear<T> (this System.Collections.Concurrent.ConcurrentBag<T> cb) {
+            T temp = default (T);
+            while (!cb.IsEmpty) {
+                cb.TryTake (out temp);
+            }
         }
+
         public static string getFriendlyTime (long ms) {
             return new System.Text.StringBuilder ()
                 .Append ((ms / (1000 * 60 * 60)).ToString ("00")).Append (":")
                 .Append ((ms / (1000 * 60) % 60).ToString ("00")).Append (":")
                 .Append ((ms / 1000 % 60).ToString ("00")).ToString ();
+        }
+
+        public static double totalMsToGreenTime (this System.DateTime time) {
+            return (time - new System.DateTime (1970, 1, 1, 0, 0, 0, 0)).TotalMilliseconds;
+        }
+
+        public static void put<T1, T2> (this System.Collections.Generic.Dictionary<T1, T2> dict, T1 key, T2 value) {
+            if (dict.ContainsKey (key)) {
+                dict[key] = value;
+            } else {
+                dict.Add (key, value);
+            }
         }
     }
 }

@@ -23,7 +23,7 @@ namespace LiveRoku.Core {
         public WrappedFlowNodeContext (ITransform transform, IFlowResolver resolver, IFlowResolver next) : this (transform, resolver, new WrappedFlowNodeContext (transform, next)) { }
 
         public virtual void fireConnected () {
-            Next?.Resolver ? .onConnected (Next);
+            Next?.Resolver ? .onActive (Next);
         }
 
         public virtual void fireRead (object data) {
@@ -35,7 +35,7 @@ namespace LiveRoku.Core {
         }
 
         public virtual void fireClosed (object data) {
-            Next?.Resolver ? .onClosed (Next, data);
+            Next?.Resolver ? .onInactive (Next, data);
         }
 
         public virtual void fireException (Exception e) {

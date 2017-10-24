@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Base {
+﻿namespace LiveRoku.Base.Logger {
     public enum Level {
         None,
         Debug,

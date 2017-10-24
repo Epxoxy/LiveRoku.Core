@@ -10,10 +10,10 @@
         }
     }
     public interface IFlowResolver {
-        void onConnected (ITransformContext ctx);
+        void onActive (ITransformContext ctx);
         void onReadReady (ITransformContext ctx, object data);
         void onRead (ITransformContext ctx, object data);
-        void onClosed (ITransformContext ctx, object data);
+        void onInactive (ITransformContext ctx, object data);
         void onException (ITransformContext ctx, System.Exception e);
     }
 
