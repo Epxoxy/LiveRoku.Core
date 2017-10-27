@@ -1,5 +1,5 @@
-﻿namespace LiveRoku.LoaderBase {
-    public class PluginConfiguration {
+﻿namespace LiveRoku.Loader {
+    public class PluginConfig {
         public System.Type HostType { get; set; }
         public bool IsEnable { get; set; } = true;
         public string ConfigName { get; set; }

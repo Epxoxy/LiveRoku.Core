@@ -1,28 +1,37 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using LiveRoku.Base;
 using LiveRoku.Base.Logger;
-using LiveRoku.Base.Plugin;
-using LiveRoku.LoaderBase;
+using LiveRoku.Loader;
 
-namespace LiveRoku.Core.Test {
+namespace LiveRoku.Test {
+
+    class ArgsModel {
+        public string RoomId { get; set; }
+        public string Folder { get; set; } = "C:/mnt/hd1/station/bilibili/test/testtemp";
+        public string FileFormat { get; set; } = "{roomId}-{Y}-{M}-{d}-{H}-{m}-{s}.flv";
+        public string UserAgent { get; set; }
+        public bool DownloadDanmaku { get; set; } = true;
+        public bool AutoStart { get; set; } = true;
+    }
+
     class Program : ILogHandler, IFetchArgsHost, ILiveProgressBinder {
-        public string RoomId => roomId;
-        public string Folder => "C:/mnt/hd1/station/bilibili/test/testtemp";
-        public string FileFormat => "{roomId}-{Y}-{M}-{d}-{H}-{m}-{s}.flv";
-        public string UserAgent => null;
-        public bool DownloadDanmaku => true;
-        public bool AutoStart => true;
+        public string RoomId => Args.RoomId;
+        public string Folder => Args.Folder;
+        public string FileFormat => Args.FileFormat;
+        public string UserAgent => Args.UserAgent;
+        public bool DownloadDanmaku => Args.DownloadDanmaku;
+        public bool AutoStart => Args.AutoStart;
         private ILiveFetcher fetcher;
-        private string roomId;
         private string sizeText;
         private int durationUpdateTimes = 0;
+        public ArgsModel Args { get; private set; }
 
-        public Program (string roomId) {
-            this.roomId = roomId;
+        public Program (ArgsModel args) {
+            this.Args = args;
         }
 
         public void bindFetcher (ILiveFetcher fetcher) {
@@ -64,11 +73,11 @@ namespace LiveRoku.Core.Test {
             //TODO Implement it
         }
 
-        static void runSafely(Action doWhat) {
+        static void runSafely (Action doWhat) {
             try {
-                doWhat?.Invoke();
+                doWhat?.Invoke ();
             } catch (Exception e) {
-                Debug.WriteLine(e.ToString());
+                Debug.WriteLine (e.ToString ());
             }
         }
 
@@ -81,37 +90,39 @@ namespace LiveRoku.Core.Test {
             uiThread.SetApartmentState (ApartmentState.STA);
             uiThread.IsBackground = true;
             uiThread.Start ();
-            
+
             //Choose room id
             var roomIds = new string[] { "5441", "469", "439", "305", "102", "183", "118", "501", "379", "131", "413" };
             var testOneId = roomIds[new Random ().Next (roomIds.Length - 1)];
             //Make argHost
-            var argsHost = new Program (testOneId);
+            Program argsHost = null;
 
-            var sw = new Stopwatch();
-            sw.Start();
+            var sw = new Stopwatch ();
+            sw.Start ();
             //Load core and plugins
-            var bootstrap = new Bootstrap (AppDomain.CurrentDomain.BaseDirectory);
+            var bootstrap = new LoadManager (AppDomain.CurrentDomain.BaseDirectory);
             LoadContext ctx = null;
-            runSafely(() => {
-                if ((ctx = bootstrap.makeFor(argsHost)) == null) {
-                    Console.WriteLine("Cannot load context.");
-                    Console.ReadKey();
-                    Environment.Exit(-1);
+            runSafely (() => {
+                var ctxBase = bootstrap.initCtxBase ();
+                var mArgs = ctxBase.AppLocalData.getAppSettings ().get ("Args", new ArgsModel ());
+                mArgs.RoomId = mArgs.RoomId ?? testOneId;
+                argsHost = new Program (mArgs);
+                if ((ctx = bootstrap.create (argsHost)) == null) {
+                    Console.WriteLine ("Cannot load context.");
+                    Console.ReadKey ();
+                    Environment.Exit (-1);
                 }
             });
-            Debug.WriteLine($"Load context used {sw.ElapsedMilliseconds}");
-            sw.Restart();
+            Debug.WriteLine ($"Load context used {sw.ElapsedMilliseconds}");
+            sw.Restart ();
 
-            //Find settings
-            var settings = new EasySettings ();
             //Init plugins
-            foreach (var plugin in ctx.Plugins) {
-                runSafely(() => plugin.onInitialize(settings));
-                runSafely(() => plugin.onAttach(ctx));
-            }
-            Debug.WriteLine($"Load plugins used {sw.ElapsedMilliseconds}");
-            sw.Stop();
+            Parallel.ForEach (ctx.Plugins, plugin => {
+                runSafely (() => plugin.onInitialize (ctx.AppLocalData.getAppSettings ()));
+                runSafely (() => plugin.onAttach (ctx));
+            });
+            Debug.WriteLine ($"Load plugins used {sw.ElapsedMilliseconds}");
+            sw.Stop ();
 
             //Attach fetcher
             var fetcher = ctx.Fetcher;
@@ -132,14 +143,15 @@ namespace LiveRoku.Core.Test {
             //Detach
             fetcher.stop ();
             fetcher.Dispose ();
-            sw.Start();
-            foreach (var plugin in ctx.Plugins ?? Enumerable.Empty<IPlugin> ()) {
-                runSafely(() => plugin.onDetach(ctx));
-            }
-            Debug.WriteLine($"Detach plugins used {sw.ElapsedMilliseconds}");
-            sw.Restart();
-            ctx.saveAllSettings();
-            Debug.WriteLine($"Save settings used {sw.ElapsedMilliseconds}");
+            sw.Start ();
+            ctx.AppLocalData.getAppSettings ().put ("Args", argsHost.Args);
+            Parallel.ForEach (ctx.Plugins, plugin => {
+                runSafely (() => plugin.onDetach (ctx));
+            });
+            Debug.WriteLine ($"Detach plugins used {sw.ElapsedMilliseconds}");
+            sw.Restart ();
+            ctx.saveAppData ();
+            Debug.WriteLine ($"Save settings used {sw.ElapsedMilliseconds}");
         }
     }
 }

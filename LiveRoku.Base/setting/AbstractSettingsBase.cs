@@ -3,8 +3,7 @@ namespace LiveRoku.Base {
     public abstract class AbstractSettingsBase : ISettings {
         public virtual bool CanSaveToDisk { get; protected set; } = false;
 
-        public IReadOnlyDictionary<string, object> Dictionary => settings;
-        protected Dictionary<string, object> Settings => settings;
+        public IReadOnlyDictionary<string, object> Settings => settings;
         private readonly Dictionary<string, object> settings;
 
         public AbstractSettingsBase() : this(new Dictionary<string, object>()) { }

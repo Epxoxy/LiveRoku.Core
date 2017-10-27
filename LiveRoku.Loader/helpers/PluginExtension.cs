@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LiveRoku.Base.Plugin;
-
-namespace LiveRoku.LoaderBase {
-
+namespace LiveRoku.Loader {
     internal class PluginHelper {
 
         public static IDictionary<string, object> findSettings (object instance) {
@@ -41,30 +39,6 @@ namespace LiveRoku.LoaderBase {
                     throw new Exception ($"values not found of which is required, name: {name}.");
                 }
             }
-        }
-
-        public static Dictionary<string, SettingItemCollection> unwrapAllSettings(string directory, string searchPattern) {
-            if (!Directory.Exists(directory)) return null;
-            var settings = new Dictionary<string, SettingItemCollection>();
-            foreach (var file in Directory.EnumerateFiles(directory, searchPattern)) {
-                string text = null;
-                SettingItemCollection collection = null;
-                try {
-                    text = FileHelper.readText(file);
-                } catch (Exception e) {
-                    System.Diagnostics.Debug.WriteLine(e.ToString());
-                }
-                try {
-                    collection = FileHelper.deserializeFromJson<SettingItemCollection>(text);
-                } catch (Exception e) {
-                    System.Diagnostics.Debug.WriteLine(e.ToString());
-                }
-                if (collection != null) {
-                    collection.UnwarppedSettings = SettingItem.unwrap(collection.Items);
-                    settings.Add(collection.AccessKey, collection);
-                }
-            }
-            return settings;
         }
 
     }

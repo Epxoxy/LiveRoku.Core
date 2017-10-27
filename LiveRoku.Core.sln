@@ -5,11 +5,11 @@ VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Core", "LiveRoku.Core\LiveRoku.Core.csproj", "{6F49E205-8FAB-48DA-B237-7346877460AD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Core.Test", "LiveRoku.Core.Test\LiveRoku.Core.Test.csproj", "{C9454101-1F87-4FD7-BA2E-D7394C4DC377}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Base", "LiveRoku.Base\LiveRoku.Base.csproj", "{D0364294-6F2D-403A-A329-A292318F7D63}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.LoaderBase", "LiveRoku.LoaderBase\LiveRoku.LoaderBase.csproj", "{D3E71283-9AEB-423B-AA5E-29B747A4EA82}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Loader", "LiveRoku.Loader\LiveRoku.Loader.csproj", "{D3E71283-9AEB-423B-AA5E-29B747A4EA82}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveRoku.Test", "LiveRoku.Test\LiveRoku.Test.csproj", "{C9454101-1F87-4FD7-BA2E-D7394C4DC377}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,10 +21,6 @@ Global
 		{6F49E205-8FAB-48DA-B237-7346877460AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6F49E205-8FAB-48DA-B237-7346877460AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6F49E205-8FAB-48DA-B237-7346877460AD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D0364294-6F2D-403A-A329-A292318F7D63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D0364294-6F2D-403A-A329-A292318F7D63}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D0364294-6F2D-403A-A329-A292318F7D63}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -33,6 +29,10 @@ Global
 		{D3E71283-9AEB-423B-AA5E-29B747A4EA82}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D3E71283-9AEB-423B-AA5E-29B747A4EA82}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D3E71283-9AEB-423B-AA5E-29B747A4EA82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9454101-1F87-4FD7-BA2E-D7394C4DC377}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

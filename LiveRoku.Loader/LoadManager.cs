@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -8,28 +7,25 @@ using System.Text.RegularExpressions;
 using LiveRoku.Base;
 using LiveRoku.Base.Plugin;
 
-namespace LiveRoku.LoaderBase {
+namespace LiveRoku.Loader {
 
-    public class Bootstrap : IDisposable {
+    public class LoadManager : IDisposable {
         public string BaseDirectory => baseDir;
         private readonly string baseDir;
         private readonly string dataDir;
         private readonly string pluginDir;
         private readonly string coreDir;
-        private readonly string pathOfConfig;
-        private readonly string pathOfExtra;
+        private const string appDataFileName = "app.data";
         private IDictionary<string, Assembly> assemblies;
         private LoadContextBase baseCtx;
 
-        public Bootstrap (string baseDir) {
-            if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir))
+        public LoadManager (string baseDir) {
+            if (string.IsNullOrEmpty (baseDir) || !Directory.Exists (baseDir))
                 throw new ArgumentException ($"parameter {nameof(baseDir)} must be a readable directory.");
             this.baseDir = baseDir;
             this.dataDir = Path.Combine (baseDir + "data");
             this.pluginDir = Path.Combine (baseDir + "plugins");
             this.coreDir = Path.Combine (baseDir + "core");
-            this.pathOfConfig = Path.Combine (dataDir, "application.plugins.config");
-            this.pathOfExtra = Path.Combine(dataDir, "application.extra.config");
             makeDirectoryExist (pluginDir);
             if (!makeDirectoryExist (coreDir))
                 throw new ArgumentException ($"parameter {nameof(coreDir)} must be a readable directory.");
@@ -44,28 +40,43 @@ namespace LiveRoku.LoaderBase {
         }
 
         private LoadContextBase reloadCtxBase () {
-            var ctx = new LoadContextBase (baseDir, dataDir, pathOfConfig, pathOfExtra);
             //Load core part
-            Type core = null;
-            if ((core = findCoreImpl (coreDir)) == null)
+            Type coreType = null;
+            IEnumerable<Type> pluginTypes = null;
+            ContextLoadConfig appLocalData = null;
+            var extraSettings = new Dictionary<string, SettingsSection> ();
+            if ((coreType = findCoreImpl (coreDir)) == null)
                 throw new Exception ("Core.dll cannot be load.");
-            ctx.CoreType = core;
-            try {
-                ctx.PluginImpls = loadTypesImplFromDirectory<IPlugin> (pluginDir, "*.dll") ? .ToList ();
-                ctx.AllSettings = PluginHelper.unwrapAllSettings(dataDir, "*.txt");
-                var text = FileHelper.readText (Path.Combine (dataDir, pathOfConfig));
-                ctx.InitConfigs = FileHelper.deserializeFromJson<Dictionary<string, PluginConfiguration>> (text);
-            } catch (Exception e) {
-                System.Diagnostics.Debug.WriteLine (e.ToString ());
+            //Get plugin types
+            runSafely (() => {
+                pluginTypes = getTypesImplFromDirectory<IPlugin> (pluginDir, "*.dll");
+            });
+            //Get app local data
+            runSafely (() => {
+                appLocalData = FileHelper.deserializeFromPath<ContextLoadConfig> (Path.Combine (dataDir, appDataFileName));
+            });
+            //Get extra settings
+            foreach (var file in FileHelper.safelyGetFiles (dataDir, "*.txt")) {
+                runSafely (() => {
+                    var collection = FileHelper.deserializeFromPath<SettingsSection> (file);
+                    if (collection != null)
+                        extraSettings.Add (collection.AccessKey, collection);
+                });
             }
-            ctx.AllSettings = ctx.AllSettings ?? new Dictionary<string, SettingItemCollection> ();
-            ctx.PluginImpls = ctx.PluginImpls ?? new List<Type> ();
-            ctx.InitConfigs = ctx.InitConfigs ?? new Dictionary<string, PluginConfiguration> ();
-            foreach (var impl in ctx.PluginImpls) {
-                if (!ctx.InitConfigs.ContainsKey (impl.FullName)) {
-                    ctx.InitConfigs.Add (impl.FullName, new PluginConfiguration {
+            //set context config
+            appLocalData = appLocalData ?? new ContextLoadConfig ();
+            appLocalData.ExtraSettings = extraSettings;
+            //set context
+            var ctx = new LoadContextBase (dataDir, appDataFileName) {
+                CoreType = coreType,
+                AppLocalData = appLocalData,
+                PluginTypes = pluginTypes.ToList ()
+            };
+            foreach (var impl in ctx.PluginTypes) {
+                if (!ctx.AppLocalData.AppConfigs.ContainsKey (impl.FullName)) {
+                    ctx.AppLocalData.AppConfigs.Add (impl.FullName, new PluginConfig {
                         HostType = impl,
-                            Priority = ctx.InitConfigs.Count,
+                            Priority = ctx.AppLocalData.AppConfigs.Count,
                     });
                 }
             }
@@ -73,49 +84,53 @@ namespace LiveRoku.LoaderBase {
             return ctx;
         }
 
-        public LoadContext makeFor (IFetchArgsHost argsHost, bool reload = false) {
-            if (argsHost == null) {
-                throw new ArgumentNullException (nameof (argsHost));
-            }
+        public LoadContextBase initCtxBase (bool reload = false) {
             if (baseCtx == null || reload) {
                 baseCtx = reloadCtxBase ();
             }
+            return baseCtx;
+        }
+
+        public LoadContext create (IFetchArgsHost argsHost, bool reload = false) {
+            if (argsHost == null) {
+                throw new ArgumentNullException (nameof (argsHost));
+            }
+            initCtxBase (reload);
             var instance = Activator.CreateInstance (baseCtx.CoreType, argsHost);
             if (instance == null) {
                 throw new Exception ("Core implement cannot be create.");
             }
             //make plugins
             var plugins = new List<IPlugin> ();
-            if (baseCtx.PluginImpls.Count > 0) {
-                var orderedList = baseCtx.InitConfigs.Values.ToList ().OrderBy (config => config.Priority);
+            if (baseCtx.PluginTypes.Count > 0) {
+                var orderedList = baseCtx.AppLocalData.AppConfigs.Values.ToList ().OrderBy (config => config.Priority);
                 var invalidFileNameChars = new string (Path.GetInvalidFileNameChars ());
                 var regFileName = new Regex (string.Format ("[{0}]", Regex.Escape (invalidFileNameChars)));
                 foreach (var config in orderedList) {
                     //make instance
                     if (!config.IsEnable) continue;
-                    try {
+                    runSafely (() => {
                         var plugin = (IPlugin) Activator.CreateInstance (config.HostType);
                         plugins.Add (plugin);
                         var key = plugin.Token ?? plugin.GetType ().FullName;
                         //set configuration
                         config.AccessToken = key;
                         if (string.IsNullOrEmpty (config.ConfigName))
-                            config.ConfigName = regFileName.Replace (key, "").ToLower ()+".txt";
+                            config.ConfigName = regFileName.Replace (key, "").ToLower () + ".txt";
                         //restore setting
-                        if (baseCtx.AllSettings.TryGetValue (key, out SettingItemCollection my)) {
-                            PluginHelper.applySettings (plugin, my.UnwarppedSettings);
+                        if (baseCtx.AppLocalData.ExtraSettings.TryGetValue (key, out SettingsSection settings)) {
+                            PluginHelper.applySettings (plugin, settings.Items);
                         }
-                    } catch (Exception e) {
-                        System.Diagnostics.Debug.WriteLine (e.StackTrace);
-                    }
+                    });
                 }
             }
-            return new LoadContext (baseDir, dataDir, pathOfConfig, pathOfExtra) {
+            return new LoadContext (dataDir, appDataFileName) {
                 Fetcher = instance as ILiveFetcher,
                     Plugins = plugins,
-                    AllSettings = baseCtx.AllSettings,
-                    InitConfigs = baseCtx.InitConfigs,
-                    PluginImpls = baseCtx.PluginImpls
+                    AppLocalData = baseCtx.AppLocalData,
+                    CoreType = baseCtx.CoreType,
+                    PluginTypes = baseCtx.PluginTypes,
+                    LoadOk = true
             };
         }
 
@@ -139,8 +154,8 @@ namespace LiveRoku.LoaderBase {
         //Directory check
         private bool makeDirectoryExist (string path) {
             try {
-                return (!string.IsNullOrEmpty (path) && Directory.Exists (path)) 
-                    || Directory.CreateDirectory(path).Exists;
+                return (!string.IsNullOrEmpty (path) && Directory.Exists (path)) ||
+                    Directory.CreateDirectory (path).Exists;
             } catch (Exception e) {
                 System.Diagnostics.Debug.WriteLineIf (e != null, e.ToString ());
             }
@@ -149,38 +164,34 @@ namespace LiveRoku.LoaderBase {
 
         //Implement check
         private Type findCoreImpl (string dir) {
-            var target = default (Type);
-            try {
+            return runSafely (() => {
                 var files = Directory.GetFiles (dir);
+                var target = default (Type);
                 if (files.Length < 1) return target;
                 foreach (var file in files) {
-                    target = loadTypesImplFromFile<ILiveFetcher> (files.First ()).FirstOrDefault ();
+                    target = getTypesImplFromDll<ILiveFetcher> (files.First ()).FirstOrDefault ();
                     if (target == null) continue;
                     return target;
                 }
-            } catch (Exception e) {
-                System.Diagnostics.Debug.WriteLineIf (e != null, e.ToString ());
-            }
-            return target;
+                return target;
+            });
         }
 
-        private IEnumerable<Type> loadTypesImplFromDirectory<T> (string dir, string searchPattern) {
-            if (!Directory.Exists (dir)) return null;
+        private IEnumerable<Type> getTypesImplFromDirectory<T> (string dir, string searchPattern) {
+            if (!Directory.Exists (dir)) return Enumerable.Empty<Type> ();
             var result = new List<Type> ();
             foreach (var file in Directory.EnumerateFiles (dir, searchPattern)) {
                 IEnumerable<Type> types = null;
-                try {
-                    types = loadTypesImplFromFile<T> (file);
-                } catch (Exception e) {
-                    System.Diagnostics.Debug.WriteLine (e.StackTrace);
-                }
+                runSafely (() => {
+                    types = getTypesImplFromDll<T> (file);
+                });
                 if (types == null) continue;
                 result.AddRange (types);
             }
             return result;
         }
 
-        private IEnumerable<Type> loadTypesImplFromFile<T> (string path) {
+        private IEnumerable<Type> getTypesImplFromDll<T> (string path) {
             if (File.Exists (path) && path.EndsWith (".dll", true, null)) {
                 var name = AssemblyName.GetAssemblyName (path);
                 if (!assemblies.TryGetValue (name.FullName, out Assembly assembly)) {
@@ -194,5 +205,21 @@ namespace LiveRoku.LoaderBase {
             return null;
         }
 
+        static T runSafely<T> (Func<T> doWhat) {
+            try {
+                return doWhat.Invoke ();
+            } catch (Exception e) {
+                System.Diagnostics.Debug.WriteLine (e.ToString ());
+            }
+            return default (T);
+        }
+
+        static void runSafely (Action doWhat) {
+            try {
+                doWhat.Invoke ();
+            } catch (Exception e) {
+                System.Diagnostics.Debug.WriteLine (e.ToString ());
+            }
+        }
     }
 }
