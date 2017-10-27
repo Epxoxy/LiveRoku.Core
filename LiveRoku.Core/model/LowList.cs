@@ -5,39 +5,44 @@ using System.Threading;
 namespace LiveRoku.Core {
     //A list wrapper for provider low function
     public class LowList<T> : Base.ILowList<T>, IEnumerable<T> where T : class {
-        private readonly ReaderWriterLockSlim locker = new ReaderWriterLockSlim ();
-        private List<T> cache = new List<T> ();
-
-        ~LowList () {
-            locker?.Dispose ();
-        }
-
+        private List<T> op = new List<T>();
+        private T[] cache = new T[0];
+        private object locker = new object();
+        
         public IEnumerator<T> GetEnumerator() {
-            return new ConcurrentEnumerator<T>(cache, locker);
+            return ((IEnumerable<T>)cache).GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            return new ConcurrentEnumerator<T>(cache, locker);
+            return cache.GetEnumerator();
         }
 
-        public int count() {
-            return cache.Count;
-        }
+        public void add (T value) => modify (() => op.Add (value));
 
-        public void add (T value) => modify (() => cache.Add (value));
+        public void addRange(IEnumerable<T> collection) => modify(() => op.AddRange(collection));
 
-        public void remove (T value) => modify (() => cache.Remove (value));
+        public void remove (T value) => modify (() => op.Remove (value));
 
-        public void purge () => modify (() => cache.RemoveAll (obj => null == obj));
+        public void removeRange(int index, int count) => modify(() => op.RemoveRange(index, count));
 
-        public void clear () => modify (() => cache.Clear ());
+        public void purge () => modify (() => op.RemoveAll (obj => null == obj));
+
+        public void clear () => modify (() => op.Clear ());
 
         private void modify (System.Action doWhat) {
-            locker.EnterWriteLock ();
-            try {
-                doWhat.Invoke ();
-            } finally {
-                locker.ExitWriteLock ();
+            lock (locker) {
+                //invoke action
+                try { doWhat.Invoke(); }
+                catch (System.Exception e) {
+                    System.Diagnostics.Debug.WriteLine(e.ToString());
+                }
+                //copy to cache
+                var newCache = new T[op.Count];
+                try { op.CopyTo(newCache); }
+                catch (System.Exception e) {
+                    System.Diagnostics.Debug.WriteLine(e.ToString());
+                }
+                cache = newCache;
             }
         }
     }

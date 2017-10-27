@@ -3,7 +3,6 @@
     using System;
     using Base.Logger;
     using Base;
-    using System.Collections;
 
     internal interface ILiveEventEmitter : ILiveProgressBinder, IStatusBinder {
         ILogger Logger { get; }
@@ -25,6 +24,7 @@
             statusBinders.clear ();
             danmakuHandlers.clear ();
             progressBinders.clear ();
+            logHandlers.clear();
         }
 
         protected virtual void onLiveStatusUpdateInternal (bool isOn) { }
@@ -102,9 +102,8 @@
             Task.Run (() => {
                 Parallel.ForEach (host, target => {
                     if (null != target) {
-                        try {
-                            action.Invoke (target);
-                        } catch (Exception e) {
+                        try { action.Invoke (target); }
+                        catch (Exception e) {
                             var msg = $"boardcast error in {typeof (T).Name}.{action.Method.Name} : {e.Message}";
                             Logger?.log (Level.Error, msg);
                             System.Diagnostics.Debug.WriteLine (msg);
