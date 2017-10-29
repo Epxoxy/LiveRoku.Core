@@ -1,10 +1,7 @@
-﻿using System;
-using System.Text;
-
-namespace LiveRoku.Core{
+﻿namespace LiveRoku.Core{
     internal class PacketEncoder{
         public ByteBuffer encode(Packet packet, ByteBuffer output){
-            byte[] payload = Encoding.UTF8.GetBytes(packet.payload);
+            byte[] payload = System.Text.Encoding.UTF8.GetBytes(packet.payload);
             packet.length = payload.Length + Packet.HeaderSize;
             packet.headerLength = Packet.HeaderSize;
             try {
@@ -15,7 +12,7 @@ namespace LiveRoku.Core{
                 output.writeInt(packet.device);
                 if (payload.Length > 0)
                     output.writeBytes(payload);
-            }catch(Exception e) {
+            }catch(System.Exception e) {
                 e.printStackTrace();
             }
             return output;

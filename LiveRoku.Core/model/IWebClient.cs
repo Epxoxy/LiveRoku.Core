@@ -1,8 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Text;
+    using System.Threading.Tasks;
     //For PCL
+    //TODO Complete it
     public interface IWebClient : IDisposable {
+        Encoding Encoding { get; set; }
         string DownloadString (string address);
         void AddHeader (string value);
         void CancelAsync ();
@@ -11,6 +14,10 @@ namespace LiveRoku.Core {
 
     internal class StandardWebClient : IWebClient {
         private readonly System.Net.WebClient webClient = new System.Net.WebClient ();
+        public Encoding Encoding {
+            get { return webClient.Encoding; }
+            set { webClient.Encoding = value; }
+        }
 
         public void AddHeader (string header) => webClient.Headers.Add (header);
 

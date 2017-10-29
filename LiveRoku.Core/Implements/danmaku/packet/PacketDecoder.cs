@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
     internal class PacketDecoder {
         public object decode(ByteBuffer input) {
             if (input == null || input.ReadableBytes < Packet.HeaderSize) {
@@ -34,7 +32,7 @@ namespace LiveRoku.Core {
                 case 5: {// danmaku data
                         payload = new byte[packet.payloadLength];
                         input.readBytes(payload, 0, payload.Length);
-                        packet.payload = Encoding.UTF8.GetString(payload);
+                        packet.payload = System.Text.Encoding.UTF8.GetString(payload);
                     } break;
                 case 4: // unknow
                 case 6: // newScrollMessage
@@ -44,7 +42,7 @@ namespace LiveRoku.Core {
                 default:  {
                         payload = new byte[packet.payloadLength];
                         input.readBytes(payload, 0, payload.Length);
-                        packet.payload = Encoding.UTF8.GetString(payload);
+                        packet.payload = System.Text.Encoding.UTF8.GetString(payload);
                     } break;
             }
             return packet;

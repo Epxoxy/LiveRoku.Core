@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LiveRoku.Core {
-
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Net.NetworkInformation;
     public interface INetworkWatcher {
         bool IsEnabled { get; }
         bool IsAvailable { get; }

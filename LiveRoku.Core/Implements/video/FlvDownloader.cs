@@ -1,7 +1,7 @@
-using System;
-using System.Net;
-using System.Threading.Tasks;
 namespace LiveRoku.Core {
+    using System;
+    using System.Net;
+    using System.Threading.Tasks;
     public delegate void BytesReceived (long totalBytes);
     internal class FlvDownloader : FileDownloaderBase {
 

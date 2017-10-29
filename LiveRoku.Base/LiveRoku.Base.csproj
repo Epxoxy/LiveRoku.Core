@@ -42,6 +42,7 @@
   <ItemGroup>
     <Compile Include="fetcher\handler\DanmakuResolver.cs" />
     <Compile Include="fetcher\handler\LiveProgressBinderBase.cs" />
+    <Compile Include="fetcher\handler\StatusAndLiveProgressBinderBase.cs" />
     <Compile Include="fetcher\handler\StatusBinderBase.cs" />
     <Compile Include="fetcher\handler\ILiveProgressBinder.cs" />
     <Compile Include="fetcher\IMission.cs" />

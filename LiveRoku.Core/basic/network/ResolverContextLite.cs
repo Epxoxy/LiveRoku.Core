@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Threading.Tasks;
-
-namespace LiveRoku.Core {
-
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Diagnostics;
+    using System.Net.Sockets;
+    using System.Threading.Tasks;
     public class NetResolverLite : ITransform {
         private bool isAlive = false;
         private TcpClient client;
@@ -27,15 +25,8 @@ namespace LiveRoku.Core {
                 client.Connect (host, port);
                 stream = client.GetStream ();
             } catch (Exception e) {
-                try {
-                    stream.Close ();
-                    client.Close ();
-                    stream = null;
-                    client = null;
-                } catch (Exception e2) {
-                    e2.printStackTrace ();
-                }
                 ctx.fireException (e);
+                close();
                 return Task.FromResult (false);
             }
             ctx.fireConnected ();
@@ -52,11 +43,11 @@ namespace LiveRoku.Core {
                     try {
                         while ((readSize = stream.Read (cache, 0, cache.Length)) > 0) {
                             buffer.writeBytes (cache, 0, readSize);
-                            System.Diagnostics.Debug.WriteLine ("## read ## " + readSize);
+                            Debug.WriteLine ("## read ## " + readSize);
                             ctx.fireRead (buffer);
                         }
                     } catch (Exception e) {
-                        e.printStackTrace ();
+                        e.printStackTrace();
                         ctx.fireException (e);
                     }
                 }
@@ -77,7 +68,7 @@ namespace LiveRoku.Core {
                 stream.Write (bytes, 0, bytes.Length);
                 return true;
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 ctx.fireException (e);
                 return false;
             }
@@ -88,7 +79,7 @@ namespace LiveRoku.Core {
                 stream.Flush ();
                 return true;
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 ctx.fireException (e);
                 return false;
             }
@@ -104,14 +95,14 @@ namespace LiveRoku.Core {
                 if (!isAlive) return;
                 isAlive = false;
             }
-            stream = null;
             try {
-                var temp = client;
+                client?.Close();
+                stream?.Close();
                 client = null;
-                temp.Close ();
+                stream = null;
                 ctx.fireClosed (null);
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 ctx.fireException (e);
             }
         }

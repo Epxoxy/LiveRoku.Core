@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading;
     internal class CancellationManager {
         private Dictionary<string, CancellationTokenSource> ctsTemp;
         private object lockHelper = new object ();
@@ -53,7 +51,7 @@ namespace LiveRoku.Core {
                 try {
                     cts.Cancel ();
                 } catch (Exception e) {
-                    e.printStackTrace ();
+                    e.printStackTrace();
                 }
             }
         }

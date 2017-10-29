@@ -34,13 +34,13 @@ namespace LiveRoku.Core {
                 //invoke action
                 try { doWhat.Invoke(); }
                 catch (System.Exception e) {
-                    System.Diagnostics.Debug.WriteLine(e.ToString());
+                    e.printStackTrace();
                 }
                 //copy to cache
                 var newCache = new T[op.Count];
                 try { op.CopyTo(newCache); }
                 catch (System.Exception e) {
-                    System.Diagnostics.Debug.WriteLine(e.ToString());
+                    e.printStackTrace();
                 }
                 cache = newCache;
             }

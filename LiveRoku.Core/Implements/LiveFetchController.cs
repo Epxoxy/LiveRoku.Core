@@ -1,47 +1,74 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using LiveRoku.Base;
-using LiveRoku.Base.Logger;
 namespace LiveRoku.Core {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Diagnostics.CodeAnalysis;
+    using System.IO;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using LiveRoku.Base;
+    using LiveRoku.Base.Logger;
     [SuppressMessage ("Microsoft.Performance", "CS4014")]
-    public class LiveFetchManager : LiveEventEmitterBase, ILiveFetcher, IDisposable {
+    public class LiveFetchController : LiveEventEmitterBase, ILiveFetcher, IDisposable {
         public ISettingsBase Extra => extra;
-        public bool IsRunning { get; private set; }
-        public bool IsStreaming => downloader.IsStreaming;
-        public bool IsLiveOn => chatMsg.IsLiveOn;
+        public bool IsRunning { get; private set; }//Value of if it's start download
+        public bool IsStreaming => downloader.IsStreaming;//Result of it's downloading or not
+        public bool IsLiveOn => dmCarrier.IsLiveOn;//The live status
 
         private readonly ISettings extra = new EasySettings ();
         private readonly CancellationManager cancelMgr = new CancellationManager ();
         private readonly INetworkWatcher network = new NetworkWatcherProxy ();
-        private readonly BiliApi biliApi; //API access
+        private readonly BiliApi accessApi; //API access
         private readonly IFetchArgsHost settings; //Provide base parameters
         private readonly FetchArgsBean argsTemp;
-        private readonly ChatCenter chatMsg;
-        private readonly LiveDownloaderImpl downloader;
+        private readonly DanmakuCarrier dmCarrier;
+        private readonly LiveDownloadWorker downloader;
         private readonly int requestTimeout;
 
-        public LiveFetchManager (IFetchArgsHost settings, int requestTimeout) {
-            //Initialize
-            this.biliApi = new BiliApi (() => {
-                return new StandardWebClient ();
-            }, Logger, settings.UserAgent);
-            this.chatMsg = new ChatCenter (this, biliApi);
-            this.downloader = new LiveDownloaderImpl (this, settings.UserAgent);
-            this.argsTemp = new FetchArgsBean (-1, biliApi, Logger);
+        public LiveFetchController (IFetchArgsHost settings, int requestTimeout) {
+            var userAgent = settings?.UserAgent;
+            //Initialize access api
+            this.accessApi = new BiliApi (makeNewWebClient, Logger, userAgent);
+            this.argsTemp = new FetchArgsBean(-1, accessApi, Logger);
             this.requestTimeout = requestTimeout;
             this.settings = settings;
+            //.............
+            //Make chat/download worker
+            //And subscribe base events for boardcasting
+            //.............
+            dmCarrier = new DanmakuCarrier(this, accessApi) {
+                HotUpdated = base.onHotUpdate,
+                DanmakuRecv = dm => {
+                    this.downloader.danmakuToLocal(dm);
+                    base.danmakuRecv(dm);
+                },
+                LiveStatusUpdated = isOn => {
+                    this.confirmDownloadWhenLiveTurn(isOn);
+                    base.onStatusUpdate(isOn);
+                }
+            };
+            downloader = new LiveDownloadWorker(this, userAgent) {
+                BitRateUpdated = bitRate => onBitRateUpdate(bitRate, $"{bitRate / 1000} Kbps"),
+                DurationUpdated = duration => onDurationUpdate(duration, SharedHelper.getFriendlyTime(duration)),
+                DownloadSizeUpdated = totalBytes => onDownloadSizeUpdate(totalBytes, totalBytes.ToFileSize()),
+                MissionCompleted = mission => {
+                    base.onMissionComplete(mission);
+                    if (IsRunning) {//Back to waiting status
+                        base.onWaiting();
+                    }
+                },
+                OnStreaming = () => {
+                    this.confirmChatCenter();
+                    base.onStreaming();
+                }
+            };
         }
-        public LiveFetchManager (IFetchArgsHost original):
-            this (original, 5000) { }
+        public LiveFetchController (IFetchArgsHost argsHost):
+            this (argsHost, 5000) { }
 
         public void Dispose () {
             stop ();
-            chatMsg.purgeEvents ();
+            dmCarrier.purgeEvents ();
             emptyHandlers ();
         }
 
@@ -74,7 +101,7 @@ namespace LiveRoku.Core {
             });
             IsRunning = true;
             downloader.reset ();
-            chatMsg.resetState ();
+            dmCarrier.resetState ();
             //Preparing signal
             this.onPreparing ();
             //Basic parameters check
@@ -90,16 +117,16 @@ namespace LiveRoku.Core {
             fetchLiveBy (roomId, folder, fileNameFormat, !extra.get("cancel-flv", false));
         }
 
-        private void cancelFetch (bool force, bool internalCall) {
+        private void cancelFetch (bool force, bool callByInternal) {
             Debug.WriteLine ("stopImpl invoke");
-            if (!internalCall) { //Network watcher needless
+            if (!callByInternal) { //Network watcher needless
                 network.detach (); //detach now
             }
             cancelMgr.cancelAll ();
             cancelMgr.clear ();
             if (IsRunning) {
                 IsRunning = false;
-                chatMsg.disconnect ();
+                dmCarrier.disconnect ();
                 downloader.stop (force);
                 Logger.log (Level.Info, "Downloader stopped.");
                 this.onStopped ();
@@ -127,22 +154,17 @@ namespace LiveRoku.Core {
                     argsTemp.AutoStart = settings.AutoStart;
                     argsTemp.VideoRequire = videoRequire;
                     argsTemp.DanmakuRequire = settings.DownloadDanmaku;
-                    var fileName = getFileFullName (argsTemp.FileNameFormat, argsTemp, DateTime.Now);
                     runOnlyOne (() => {
                         argsTemp.fetchRoomInfo ();
                     }, "fetch-room-info");
                     //All ready, start now
                     Logger.log (Level.Info, $"All ready, fetch: {argsTemp.FlvAddress}");
                     //All parameters ready
-                    this.onWaiting ();
-                    if (argsTemp.VideoRequire) {
-                        downloader.download (argsTemp.FlvAddress, fileName, argsTemp.DanmakuRequire);
-                    } else {
-                        Logger.log (Level.Info, $"No video mode");
-                    }
-                    chatMsg.connect (argsTemp.RealRoomId);
+                    base.onWaiting ();
+                    downloadThrough(downloader, argsTemp);
+                    dmCarrier.connect (argsTemp.RealRoomId);
                 } else {
-                    Logger.log (Level.Error, $"Get value fail, RealRoomId : {argsTemp.RealRoomId}");
+                    Logger.log (Level.Error, $"Get room detail fail, RealRoomId : {argsTemp.RealRoomId}");
                     stop ();
                 }
                 cancelMgr.remove ("fetch-start-impl");
@@ -152,33 +174,40 @@ namespace LiveRoku.Core {
         //.......
         //Handlers
         //.......
-        protected override void onDanmakuRecvInternal (DanmakuModel danmaku) {
-            downloader.danmakuToLocal (danmaku);
+        private IWebClient makeNewWebClient() {
+            return new StandardWebClient {
+                Encoding = System.Text.Encoding.UTF8
+            };
         }
 
-        protected override void onStreamingInternal () {
+        private void downloadThrough(LiveDownloadWorker downloader, FetchArgsBean @params) {
+            var fileName = getFileFullName (@params.FileNameFormat, @params.Folder, @params.RealRoomId, DateTime.Now);
+            if (@params.VideoRequire) {
+                downloader.download(@params.FlvAddress, fileName, @params.DanmakuRequire);
+            } else Logger.log(Level.Info, $"No video mode");
+        }
+
+        private void confirmChatCenter () {
             runOnlyOne (() => {
-                if (chatMsg.IsConnected) return;
-                chatMsg.connect (argsTemp.RealRoomId);
-            }, nameof (onStreamingInternal));
+                if (dmCarrier.IsChannelActive) return;
+                dmCarrier.connect (argsTemp.RealRoomId);
+            }, nameof (confirmChatCenter));
         }
 
-        protected override void onLiveStatusUpdateInternal (bool isOn) {
+        private void confirmDownloadWhenLiveTurn (bool isOn) {
             if (!argsTemp.VideoRequire) return;
             if (!isOn) {
-                cancelMgr.cancel (nameof (onLiveStatusUpdateInternal));
-                cancelMgr.remove (nameof (onLiveStatusUpdateInternal));
+                cancelMgr.cancel (nameof (confirmDownloadWhenLiveTurn));
+                cancelMgr.remove (nameof (confirmDownloadWhenLiveTurn));
                 downloader.stop (false);
             } else if (argsTemp.AutoStart && !downloader.IsStreaming) {
                 runOnlyOne (() => {
                     var isUpdated = argsTemp.fetchUrlAndRealId ();
                     Logger.log (Level.Info, $"Flv address updated : {argsTemp.FlvAddress}");
-                    if (isUpdated && IsRunning && chatMsg.IsLiveOn && !downloader.IsStreaming) {
-                        //Ensure downloader's newest state
-                        var fileName = getFileFullName (argsTemp.FileNameFormat, argsTemp, DateTime.Now);
-                        downloader.download (argsTemp.FlvAddress, fileName, argsTemp.DanmakuRequire);
+                    if (isUpdated && IsRunning && dmCarrier.IsLiveOn && !downloader.IsStreaming) {
+                        downloadThrough(downloader, argsTemp);
                     }
-                }, nameof (onLiveStatusUpdateInternal), requestTimeout).ContinueWith (task => {
+                }, nameof (confirmDownloadWhenLiveTurn), requestTimeout).ContinueWith (task => {
                     task.Exception?.printOn (Logger);
                 }, TaskContinuationOptions.OnlyOnFaulted);
             }
@@ -187,10 +216,10 @@ namespace LiveRoku.Core {
         //...........
         //Help method
         //...........
-        private string getFileFullName (string format, FetchArgsBean args, DateTime baseTime) {
+        private string getFileFullName (string format, string folder, int realRoomId, DateTime baseTime) {
             var fileName = string.Empty;
             try {
-                fileName = format.Replace ("{roomId}", args.RealRoomId.ToString ())
+                fileName = format.Replace ("{roomId}", realRoomId.ToString ())
                     .Replace ("{Y}", baseTime.Year.ToString ("D4"))
                     .Replace ("{M}", baseTime.Month.ToString ("D2"))
                     .Replace ("{d}", baseTime.Day.ToString ("D2"))
@@ -198,10 +227,10 @@ namespace LiveRoku.Core {
                     .Replace ("{m}", baseTime.Minute.ToString ("D2"))
                     .Replace ("{s}", baseTime.Second.ToString ("D2"));
             } catch (Exception e) {
-                e.printStackTrace ();
-                fileName = $"{args.RealRoomId}-{baseTime.ToString("yyyy-MM-dd-HH-mm-ss")}";
+                e.printStackTrace();
+                fileName = $"{realRoomId}-{baseTime.ToString("yyyy-MM-dd-HH-mm-ss")}";
             }
-            return Path.Combine (args.Folder, fileName);
+            return Path.Combine (folder, fileName);
         }
 
         private Task runOnlyOne (Action action, string tokenKey, int timeout = 0) {

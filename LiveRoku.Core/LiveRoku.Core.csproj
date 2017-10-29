@@ -46,30 +46,28 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="api\IWebClient.cs" />
-    <Compile Include="model\ConcurrentEnumerator.cs" />
+    <Compile Include="model\IWebClient.cs" />
     <Compile Include="model\LowList.cs" />
-    <Compile Include="api\RoomInfo.cs" />
-    <Compile Include="api\FetchArgsBean.cs" />
-    <Compile Include="fetchers\helpers\CancellationManager.cs" />
+    <Compile Include="model\RoomInfo.cs" />
+    <Compile Include="Implements\api\FetchArgsBean.cs" />
+    <Compile Include="basic\helpers\CancellationManager.cs" />
     <Compile Include="basic\network\Utils.cs" />
-    <Compile Include="fetchers\chat\ChatEvents.cs" />
-    <Compile Include="fetchers\chat\handlers\EventSubmitHandler.cs" />
-    <Compile Include="fetchers\chat\packet\DanmakuFactory.cs" />
+    <Compile Include="Implements\danmaku\DanmakuEvents.cs" />
+    <Compile Include="Implements\danmaku\handlers\EventSubmitHandler.cs" />
+    <Compile Include="Implements\danmaku\packet\DanmakuFactory.cs" />
     <Compile Include="basic\unwanted\DynamicBuffer.cs" />
-    <Compile Include="fetchers\helpers\DebugHelper.cs" />
     <Compile Include="basic\unwanted\FileSizeFormatProvider.cs" />
-    <Compile Include="basic\media\VideoInfo.cs" />
-    <Compile Include="fetchers\chat\DanmakuWriter.cs" />
-    <Compile Include="fetchers\chat\packet\PacketDecoder.cs" />
-    <Compile Include="fetchers\chat\packet\PacketEncoder.cs" />
-    <Compile Include="fetchers\chat\ChatCenter.cs" />
-    <Compile Include="fetchers\downloaders\FileDownloaderBase.cs" />
-    <Compile Include="fetchers\downloaders\FlvDownloader.cs" />
-    <Compile Include="fetchers\helpers\NetworkWatcherProxy.cs" />
-    <Compile Include="fetchers\helpers\SharedHelper.cs" />
-    <Compile Include="fetchers\LiveFetchManager.cs" />
-    <Compile Include="api\BiliApi.cs" />
+    <Compile Include="model\VideoInfo.cs" />
+    <Compile Include="Implements\danmaku\DanmakuWriter.cs" />
+    <Compile Include="Implements\danmaku\packet\PacketDecoder.cs" />
+    <Compile Include="Implements\danmaku\packet\PacketEncoder.cs" />
+    <Compile Include="Implements\danmaku\DanmakuCarrier.cs" />
+    <Compile Include="Implements\video\FileDownloaderBase.cs" />
+    <Compile Include="Implements\video\FlvDownloader.cs" />
+    <Compile Include="basic\helpers\NetworkWatcherProxy.cs" />
+    <Compile Include="basic\SharedHelper.cs" />
+    <Compile Include="Implements\LiveFetchController.cs" />
+    <Compile Include="Implements\api\BiliApi.cs" />
     <Compile Include="basic\unwanted\WeakHelper.cs" />
     <Compile Include="basic\media\MediaInfoDLL.cs" />
     <Compile Include="basic\network\buffer\ByteBuffer.cs" />
@@ -79,19 +77,19 @@
     <Compile Include="basic\network\context\ITransformContext.cs" />
     <Compile Include="basic\network\context\IWrappedResolver.cs" />
     <Compile Include="basic\network\ResolverContextLite.cs" />
-    <Compile Include="fetchers\chat\handlers\KeepAliveHandler.cs" />
-    <Compile Include="fetchers\chat\handlers\UnpackHandler.cs" />
-    <Compile Include="fetchers\chat\packet\Packet.cs" />
-    <Compile Include="fetchers\downloaders\LiveDownloaderImpl.cs" />
-    <Compile Include="fetchers\helpers\SimpleMission.cs" />
-    <Compile Include="fetchers\LiveEventEmitterBase.cs" />
+    <Compile Include="Implements\danmaku\handlers\KeepAliveHandler.cs" />
+    <Compile Include="Implements\danmaku\handlers\UnpackHandler.cs" />
+    <Compile Include="Implements\danmaku\packet\Packet.cs" />
+    <Compile Include="Implements\LiveDownloadWorker.cs" />
+    <Compile Include="model\SimpleMission.cs" />
+    <Compile Include="Implements\LiveEventEmitterBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="basic\unwanted\WeakListHost.cs" />
     <Compile Include="basic\unwanted\SerializeHelper.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="documents\getServer.txt" />
-    <Content Include="documents\infojson.txt" />
+    <Content Include="basic\documents\getServer.txt" />
+    <Content Include="basic\documents\infojson.txt" />
     <Content Include="basic\media\MediaInfo.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

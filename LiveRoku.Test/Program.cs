@@ -84,7 +84,8 @@ namespace LiveRoku.Test {
         static void Main (string[] args) {
             //UIThread for plugin of which need to show WPF ui element
             var uiThread = new Thread (() => {
-                new Application ().Run ();
+                var app = new Application();
+                app.Run ();
                 //System.Windows.Threading.Dispatcher.Run ();
             });
             uiThread.SetApartmentState (ApartmentState.STA);
@@ -129,20 +130,19 @@ namespace LiveRoku.Test {
             argsHost.bindFetcher (fetcher);
             fetcher.Logger.LogHandlers.add (argsHost);
             fetcher.LiveProgressBinders.add (argsHost);
-            fetcher.Extra.put ("cancel-flv", true);
+            //fetcher.Extra.put ("cancel-flv", true);
             fetcher.DanmakuHandlers.add (danmaku => {
                 if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) return;
                 Debug.WriteLine ($"\"{danmaku.UserName}\" : {danmaku.CommentText}");
             });
             fetcher.start ();
-
             //Waitting for exit
             ConsoleKeyInfo press;
             while ((press = Console.ReadKey ()).Key != ConsoleKey.Escape) { }
 
             //Detach
-            fetcher.stop ();
-            fetcher.Dispose ();
+            fetcher.stop();
+            fetcher.Dispose();
             sw.Start ();
             ctx.AppLocalData.getAppSettings ().put ("Args", argsHost.Args);
             Parallel.ForEach (ctx.Plugins, plugin => {

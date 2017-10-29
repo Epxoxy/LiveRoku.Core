@@ -1,9 +1,9 @@
-using System;
-using System.ComponentModel;
-using System.IO;
-using System.Net;
-using System.Threading.Tasks;
 namespace LiveRoku.Core {
+    using System;
+    using System.ComponentModel;
+    using System.IO;
+    using System.Net;
+    using System.Threading.Tasks;
     internal abstract class FileDownloaderBase {
         public bool IsRunning { get; private set; }
         public Action OnDownloadCompleted;
@@ -73,7 +73,7 @@ namespace LiveRoku.Core {
                 Directory.CreateDirectory (Path.GetDirectoryName (savePath));
                 return true;
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 stop ();
                 return false;
             }

@@ -26,16 +26,11 @@
             progressBinders.clear ();
             logHandlers.clear();
         }
-
-        protected virtual void onLiveStatusUpdateInternal (bool isOn) { }
-        protected virtual void onStreamingInternal () { }
-        protected virtual void onDanmakuRecvInternal (DanmakuModel danmaku) { }
-
+        
         //..................
         //Boardcast events
         //Interface part below
         public void onStatusUpdate (bool isOn) {
-            onLiveStatusUpdateInternal (isOn);
             boardcast (progressBinders, binder => {
                 binder.onStatusUpdate (isOn);
             });
@@ -66,7 +61,6 @@
             });
         }
         public void onStreaming () {
-            onStreamingInternal ();
             boardcast (statusBinders, binder => {
                 binder.onStreaming ();
             });
@@ -82,7 +76,6 @@
             });
         }
         public void danmakuRecv (DanmakuModel danmaku) {
-            onDanmakuRecvInternal (danmaku);
             boardcast (danmakuHandlers, handler => {
                 handler.Invoke (danmaku);
             });

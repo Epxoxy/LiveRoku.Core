@@ -1,7 +1,10 @@
-﻿using System;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
     internal static class SharedHelper {
+        public static void printStackTrace(this System.Exception e){
+            if (e == null) return;
+            System.Diagnostics.Debug.WriteLine(e.ToString());
+        }
+
         public static bool checkCanConnect (string hostNameOrAddress) {
             try {
                 System.Net.Dns.GetHostEntry (hostNameOrAddress);
@@ -10,9 +13,9 @@ namespace LiveRoku.Core {
                 return false;
             }
         }
-        public static void printOn (this Exception e, Base.Logger.ILogger logger) {
+        public static void printOn (this System.Exception e, Base.Logger.ILogger logger) {
             if (e == null) return;
-            e.printStackTrace ();
+            e.printStackTrace();
             logger.log (Base.Logger.Level.Error, e.Message);
         }
 

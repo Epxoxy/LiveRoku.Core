@@ -24,7 +24,7 @@ namespace LiveRoku.Core {
             try {
                 ctx.writeAndFlush (handshakeBytes);
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 ctx.close ();
                 return;
             }
@@ -40,7 +40,7 @@ namespace LiveRoku.Core {
                         ctx.writeAndFlush (pingBytes);
                         System.Diagnostics.Debug.WriteLine ("heartbeat...", "INFO");
                     } catch (Exception e) {
-                        e.printStackTrace ();
+                        e.printStackTrace();
                         if (errorTimes > retryTimes) break;
                         ++errorTimes;
                         continue;

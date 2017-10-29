@@ -1,21 +1,24 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using LiveRoku.Base;
-using LiveRoku.Base.Logger;
-namespace LiveRoku.Core {
-    internal class ChatCenter {
-        public bool IsConnected => IsActive;
-        public bool IsLiveOn => isLiveOn;
-        private bool IsActive => transform?.isActive () == true;
-        private readonly ILiveEventEmitter em;
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Diagnostics;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using LiveRoku.Base;
+    using LiveRoku.Base.Logger;
+    internal class DanmakuCarrier {
+        public bool IsChannelActive => transform?.isActive() == true;
+        public bool IsLiveOn { get; private set; }
+        public Action<long> HotUpdated { get; set; }
+        public Action<DanmakuModel> DanmakuRecv { get; set; }
+        public Action<bool> LiveStatusUpdated { get; set; }
+        //private readonly
+        private readonly ILogger logger;
         private readonly BiliApi biliApi; //API access
         private readonly EventSubmitHandler events;
         private readonly ReconnectArgs reconnect = new ReconnectArgs ();
         private readonly object keepOneTransform = new object ();
+        //private
         private CancellationTokenSource timeout;
-        private bool isLiveOn;
         private bool isEnabled;
         private int realRoomId;
         private NetResolverLite transform;
@@ -30,15 +33,15 @@ namespace LiveRoku.Core {
             }
         }
 
-        public ChatCenter (ILiveEventEmitter em, BiliApi biliApi) {
-            this.em = em;
+        public DanmakuCarrier (ILogger logger, BiliApi biliApi) {
+            this.logger = logger;
             this.biliApi = biliApi;
             //Initialize Downloaders
             this.events = new EventSubmitHandler {
-                OnException = e => em.Logger.log(Level.Info,
+                OnException = e => logger.log(Level.Info,
                 $"chat transform exception : {e?.Message}"),
                 OnMessage = emitDanmaku,
-                HotUpdated = em.onHotUpdate,
+                HotUpdated = updateHot,
                 Active = onActive,
                 InActive = reconnectIfError
             };
@@ -46,9 +49,9 @@ namespace LiveRoku.Core {
         }
 
         public void resetState () {
-            isLiveOn = false;
+            IsLiveOn = false;
             reconnect.reset ();
-            if (IsActive) {
+            if (IsChannelActive) {
                 disconnect ();
             }
         }
@@ -60,37 +63,38 @@ namespace LiveRoku.Core {
             //close connection
             if (transform?.isActive () == true) {
                 var temp = transform;
-                temp.close ();
-                temp.Resolvers.clear ();
+                transform = null;
+                temp.close();
+                temp.Resolvers.clear();
                 temp = null;
             }
             if (timeout?.Token.CanBeCanceled == true) {
-                timeout.Cancel ();
+                timeout.Cancel();
             }
         }
 
         public void connect (int realRoomId) {
             this.isEnabled = true;
             this.realRoomId = realRoomId;
-            if (!IsActive) {
+            if (!IsChannelActive) {
                 connectByApi (biliApi, realRoomId);
             }
         }
 
         private bool connectByApi (BiliApi biliApi, int realRoomId) {
             if (biliApi.tryGetValidDmServerBean (realRoomId.ToString (), out BiliApi.ServerBean bean)) {
-                em.Logger.log (Level.Info, "Trying to connect to danmaku server.");
+                logger.log (Level.Info, "Trying to connect to danmaku server.");
                 activeTransform (bean.Host, bean.Port, realRoomId);
                 return true;
             } else {
-                em.Logger.log (Level.Error, "Cannot get valid server address and port.");
+                logger.log (Level.Error, "Cannot get valid server address and port.");
                 return false;
             }
         }
 
         private bool activeTransform (String host, int port, int realRoomId) {
             lock (keepOneTransform) {
-                if (IsActive) return false;
+                if (IsChannelActive) return false;
                 //............
                 transform?.Resolvers.clear ();
                 transform = new NetResolverLite ();
@@ -103,41 +107,45 @@ namespace LiveRoku.Core {
         }
 
         private void onActive () {
-            em.Logger.log (Level.Info, $"Connect to danmaku server ok.");
+            logger.log (Level.Info, $"Connect to danmaku server ok.");
             reconnect.reset ();
         }
 
         private void emitDanmaku (DanmakuModel danmaku) {
             if (!isEnabled /*May not come here*/ ) return;
             findLiveStatusFrom (danmaku);
-            em.danmakuRecv (danmaku);
+            DanmakuRecv?.Invoke(danmaku);
         }
 
         private void findLiveStatusFrom (DanmakuModel danmaku) {
             if (MsgTypeEnum.LiveEnd == danmaku.MsgType) {
                 //Update live status
                 updateToLiveStatus (false);
-                em.Logger.log (Level.Info, "Message received : Live End.");
+                logger.log (Level.Info, "Message received : Live End.");
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
                 updateToLiveStatus (true);
-                em.Logger.log (Level.Info, "Message received : Live Start.");
+                logger.log (Level.Info, "Message received : Live Start.");
             }
         }
 
         private void updateToLiveStatus (bool isLiveOn, bool raiseEvent = true) {
-            if (this.isLiveOn != isLiveOn) {
-                this.isLiveOn = isLiveOn;
+            if (this.IsLiveOn != isLiveOn) {
+                this.IsLiveOn = isLiveOn;
                 if (raiseEvent) {
-                    em.onStatusUpdate (isLiveOn);
+                    LiveStatusUpdated?.Invoke(isLiveOn);
                 }
             }
+        }
+
+        private void updateHot(long popularity) {
+            HotUpdated?.Invoke(popularity);
         }
 
         private async void reconnectIfError (Exception e) {
             //TODO something here
             if(e!=null){
-                em.Logger.log (Level.Error, e?.Message);
+                logger.log (Level.Error, e.Message);
             }
             if (timeout?.Token.CanBeCanceled == true) {
                 timeout.Cancel ();
@@ -146,7 +154,7 @@ namespace LiveRoku.Core {
                 return;
             }
             if (!reconnect.canRetry ()) {
-                em.Logger.log (Level.Error, "Retry time more than the max.");
+                logger.log (Level.Error, "Retry time more than the max.");
                 return;
             }
             //set cancellation and start task.
@@ -163,7 +171,7 @@ namespace LiveRoku.Core {
             if (delay > 0) {
                 await Task.Delay (TimeSpan.FromMilliseconds (delay));
                 if (!isEnabled) return;
-                em.Logger.log (Level.Info, $"Trying to reconnect to danmaku server after {(delay) / (double) 1000}s");
+                logger.log (Level.Info, $"Trying to reconnect to danmaku server after {(delay) / (double) 1000}s");
             }
             //increase delay
             reconnect.DelayReconnectMs += (connectionOK ? 1000 : reconnect.RetryTimes * 2000);

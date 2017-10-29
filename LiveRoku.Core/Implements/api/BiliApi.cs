@@ -1,14 +1,14 @@
-using System;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
-using System.Xml.XPath;
-using LiveRoku.Base;
-using LiveRoku.Base.Logger;
-using Newtonsoft.Json.Linq;
 namespace LiveRoku.Core {
+    using System;
+    using System.Linq;
+    using System.Security.Cryptography;
+    using System.Text;
+    using System.Text.RegularExpressions;
+    using System.Xml.Linq;
+    using System.Xml.XPath;
+    using LiveRoku.Base;
+    using LiveRoku.Base.Logger;
+    using Newtonsoft.Json.Linq;
     public class BiliApi {
 
         public static class Const {
@@ -34,9 +34,9 @@ namespace LiveRoku.Core {
         private readonly string secretKey;
         private readonly Func<IWebClient> createWebClient;
 
-        public BiliApi (Func<IWebClient> createWebClient, ILogger logger, string userAgent,
+        public BiliApi (Func<IWebClient> howCreateWebClient, ILogger logger, string userAgent,
             string appKey = Const.AppKey, string secretKey = Const.SecretKey) {
-            this.createWebClient = createWebClient;
+            this.createWebClient = howCreateWebClient;
             this.logger = logger;
             this.userAgent = userAgent;
             this.appKey = appKey;
@@ -52,7 +52,7 @@ namespace LiveRoku.Core {
             try {
                 xmlText = client.DownloadString (Const.CidUrl + roomId);
             } catch (System.Net.WebException e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 var errorResponse = e.Response as System.Net.HttpWebResponse;
                 if (e.Status == System.Net.WebExceptionStatus.ConnectFailure)
                     bean.CanUseDefault = false;
@@ -63,7 +63,7 @@ namespace LiveRoku.Core {
                     logger.log (Level.Error, "Download cid xml fail : " + e.Message);
                 }
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 logger.log (Level.Error, "Download cid xml fail : " + e.Message);
             }
             if (string.IsNullOrEmpty (xmlText)) {
@@ -82,7 +82,7 @@ namespace LiveRoku.Core {
                     bean.FetchOK = true;
                 }
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 logger.log (Level.Error, "Analyzing XML fail : " + e.Message);
             }
             return bean;
@@ -148,7 +148,7 @@ namespace LiveRoku.Core {
             try {
                 realUrl = getRealUrl (realRoomId);
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 logger.log (Level.Error, "Get real url fail, Msg : " + e.Message);
                 return false;
             }
@@ -186,7 +186,7 @@ namespace LiveRoku.Core {
                 }
                 realUrl = playUrlXml.XPathSelectElement ("/video/durl/url").Value;
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
                 logger.log (Level.Error, "Analyzing XML fail : " + e.Message);
                 throw e;
             }
@@ -231,7 +231,7 @@ namespace LiveRoku.Core {
                 }
             } catch (Exception e) {
                 logger.log (Level.Error, "Open live page fail : " + e.Message);
-                e.printStackTrace ();
+                e.printStackTrace();
             }
             return null;
         }

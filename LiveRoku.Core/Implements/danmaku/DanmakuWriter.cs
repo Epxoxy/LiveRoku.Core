@@ -1,13 +1,12 @@
-using System;
-using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using LiveRoku.Base;
-
 namespace LiveRoku.Core {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Diagnostics.CodeAnalysis;
+    using System.IO;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using LiveRoku.Base;
     public class DanmakuWriter {
         private const string XmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><i>";
         private const string XmlFooter = "</i>";
@@ -69,7 +68,7 @@ namespace LiveRoku.Core {
                     sWriter.WriteLine ("<chatserver>chat.bilibili.com</chatserver><chatid>0</chatid>");
                     sWriter.WriteLine ("<mission>0</mission><maxlimit>0</maxlimit><source>k-v</source>");
                 } catch (Exception e) {
-                    e.printStackTrace ();
+                    e.printStackTrace();
                 }
                 //PART2. Start writing danmaku
                 int idleTimes = 0, writeTimes = 0;
@@ -95,13 +94,13 @@ namespace LiveRoku.Core {
                             }
                         }
                     } catch (Exception e) {
-                        e.printStackTrace ();
+                        e.printStackTrace();
                     }
                 }
                 try {
                     sWriter?.Flush ();
                 } catch (Exception e) {
-                    e.printStackTrace ();
+                    e.printStackTrace();
                 }
             }, writting.Token);
         }

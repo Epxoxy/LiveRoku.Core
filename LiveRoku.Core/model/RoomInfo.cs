@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
     internal class RoomInfo : Base.IRoomInfo {
         public Base.LiveStatus LiveStatus { get; internal set; }
         public bool IsOn { get; internal set; }
@@ -14,7 +8,7 @@ namespace LiveRoku.Core {
         public string RawData { get; internal set; }
         
         public override string ToString () {
-            return $"IsOn : {IsOn}, LiveStatus : {LiveStatus}, Title : {Title}";
+            return RawData;
         }
     }
 }

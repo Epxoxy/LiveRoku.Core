@@ -1,7 +1,6 @@
-﻿using System;
-using System.Threading.Tasks;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Threading.Tasks;
 
     public interface IWrappedResolver : ITransformContext {
         IFlowResolver Resolver { get; }

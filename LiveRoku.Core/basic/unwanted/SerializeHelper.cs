@@ -20,7 +20,7 @@ namespace LiveRoku.Core.Storage {
                     bf.Serialize (fs, sObject);
                 }
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
             }
         }
 
@@ -43,7 +43,7 @@ namespace LiveRoku.Core.Storage {
                 }
                 return dObject;
             } catch (Exception e) {
-                e.printStackTrace ();
+                e.printStackTrace();
             }
             return null;
         }

@@ -1,10 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using LiveRoku.Base;
-using Newtonsoft.Json.Linq;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using LiveRoku.Base;
+    using Newtonsoft.Json.Linq;
     public class DanmakuFactory {
         public static DanmakuModel parse (string jsonText, long createTime, int version) {
             var d = new DanmakuModel (jsonText, createTime, version);
@@ -22,7 +21,7 @@ namespace LiveRoku.Core {
                         System.Diagnostics.Debug.WriteLine (jsonText);
                         System.Diagnostics.Debug.WriteLine (e.Message);
                         System.Diagnostics.Debug.WriteLine (e.TargetSite);
-                        //e.printStackTrace ();
+                        //e.printStackTrace();
                     }
                     break;
                 default:
