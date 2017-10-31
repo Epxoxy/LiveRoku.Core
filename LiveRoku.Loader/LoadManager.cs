@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using LiveRoku.Base;
-using LiveRoku.Base.Plugin;
-
-namespace LiveRoku.Loader {
+﻿namespace LiveRoku.Loader {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Reflection;
+    using System.Text.RegularExpressions;
+    using LiveRoku.Base;
+    using LiveRoku.Base.Plugin;
 
     public class LoadManager : IDisposable {
         public string BaseDirectory => baseDir;

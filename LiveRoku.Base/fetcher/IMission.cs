@@ -1,6 +1,6 @@
 ﻿namespace LiveRoku.Base {
     public interface IMission {
-        string Subject { get; }
+        System.Collections.Generic.List<IRoomInfo> RoomInfoHistory { get; }
         string VideoObjectName { get; }
         string XMLObjectName { get; }
         System.DateTime BeginTime { get; }

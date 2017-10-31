@@ -2,10 +2,13 @@
     using System;
     using System.IO;
     using System.Text;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
+    using System.Collections.Generic;
+
     internal class LiveDownloadWorker {
         public bool IsStarted { get; private set; }
         public bool IsStreaming { get; private set; }
@@ -48,7 +51,7 @@
             IsStarted = true;
             this.dmToLocalRequired = dmRequired;
             videoInfo = new VideoInfo ();
-            record = new SimpleMission ();
+            record = new SimpleMission { RoomInfoHistory = new List<IRoomInfo>()};
             record.BeginTime = DateTime.Now;
             record.VideoObjectName = fileFullName;
             record.XMLObjectName = Path.ChangeExtension (fileFullName, "xml");
@@ -74,10 +77,18 @@
             videoFetcher.IsRunningUpdated = null;
         }
 
+        //Enqueue by outside
         public void danmakuToLocal (DanmakuModel danmaku) {
             if (IsStreaming && dmWriter?.IsRunning == true) {
                 dmWriter.enqueue (danmaku);
             }
+        }
+
+        //Update by outside
+        public void addRoomInfo(IRoomInfo info) {
+            if (record == null || info == null) return;
+            if (info.Equals(record.RoomInfoHistory.LastOrDefault())) return;
+            record.RoomInfoHistory.Add(info);
         }
 
         private void throwMission () {

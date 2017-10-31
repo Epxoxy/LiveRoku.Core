@@ -1,8 +1,8 @@
 ﻿namespace LiveRoku.Core {
     internal static class SharedHelper {
-        public static void printStackTrace(this System.Exception e){
+        public static void printStackTrace(this System.Exception e, string category = null){
             if (e == null) return;
-            System.Diagnostics.Debug.WriteLine(e.ToString());
+            System.Diagnostics.Debug.WriteLine(e.ToString(), category);
         }
 
         public static bool checkCanConnect (string hostNameOrAddress) {

@@ -54,15 +54,16 @@
         }
 
         //Will auto get RealRoomId if not valid
-        public void fetchRoomInfo () {
+        public IRoomInfo fetchRoomInfo () {
             if (RealRoomId <= 0) {
                 var realRoomIdTextTemp = accessApi.getRealRoomId (OriginRoomId.ToString ());
                 if (int.TryParse (realRoomIdTextTemp, out int realRoomIdTemp)) {
                     this.RealRoomId = realRoomIdTemp;
-                } else return;
+                } else return this.RoomInfo;
             }
             this.RoomInfo = accessApi.getRoomInfo (RealRoomId);
             Logger?.log (Level.Info, $"Fetched room info.");
+            return this.RoomInfo;
         }
     }
 }

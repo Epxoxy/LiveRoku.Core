@@ -80,7 +80,8 @@ namespace LiveRoku.Core {
                 if (argsTemp.OriginRoomId != roomId) {
                     argsTemp.resetOriginId (roomId);
                 }
-                argsTemp.fetchRoomInfo ();
+                var info = argsTemp.fetchRoomInfo ();
+                downloader.addRoomInfo(info);
             }
             return argsTemp.RoomInfo;
         }
@@ -155,7 +156,8 @@ namespace LiveRoku.Core {
                     argsTemp.VideoRequire = videoRequire;
                     argsTemp.DanmakuRequire = settings.DownloadDanmaku;
                     runOnlyOne (() => {
-                        argsTemp.fetchRoomInfo ();
+                        var info = argsTemp.fetchRoomInfo ();
+                        downloader.addRoomInfo(info);
                     }, "fetch-room-info");
                     //All ready, start now
                     Logger.log (Level.Info, $"All ready, fetch: {argsTemp.FlvAddress}");

@@ -1,6 +1,6 @@
 ﻿namespace LiveRoku.Core {
     internal class SimpleMission : Base.IMission {
-        public string Subject { get; internal set; }
+        public System.Collections.Generic.List<Base.IRoomInfo> RoomInfoHistory { get; internal set; }
         public string VideoObjectName { get; internal set; }
         public string XMLObjectName { get; internal set; }
         public System.DateTime BeginTime { get; internal set; }

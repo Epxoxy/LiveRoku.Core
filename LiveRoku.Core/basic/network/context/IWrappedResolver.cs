@@ -22,23 +22,28 @@
         public WrappedFlowNodeContext (ITransform transform, IFlowResolver resolver, IFlowResolver next) : this (transform, resolver, new WrappedFlowNodeContext (transform, next)) { }
 
         public virtual void fireConnected () {
-            Next?.Resolver ? .onActive (Next);
+            var next = Next;
+            next?.Resolver ? .onActive (next);
         }
 
         public virtual void fireRead (object data) {
-            Next?.Resolver ? .onRead (Next, data);
+            var next = Next;
+            next?.Resolver ? .onRead (next, data);
         }
 
         public virtual void fireReadReady (object data) {
-            Next?.Resolver ? .onReadReady (Next, data);
+            var next = Next;
+            next?.Resolver ? .onReadReady (next, data);
         }
 
         public virtual void fireClosed (object data) {
-            Next?.Resolver ? .onInactive (Next, data);
+            var next = Next;
+            next?.Resolver ? .onInactive (next, data);
         }
 
         public virtual void fireException (Exception e) {
-            Next?.Resolver ? .onException (Next, e);
+            var next = Next;
+            next?.Resolver ? .onException (next, e);
         }
 
         public bool isActive () => transform.isActive ();
