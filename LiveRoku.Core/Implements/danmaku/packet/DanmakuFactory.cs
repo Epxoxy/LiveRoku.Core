@@ -43,6 +43,8 @@
                     break;
                 case "DANMU_MSG":
                     d.MsgType = MsgTypeEnum.Comment;
+                    if (obj.TryGetValue("roomid", out JToken roomId))
+                        d.roomID = roomId?.ToString();
                     resolveDanmakuMsg (ref d, obj);
                     break;
                 case "SEND_GIFT":
