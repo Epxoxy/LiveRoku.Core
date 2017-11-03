@@ -5,9 +5,10 @@
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using System.Collections.Generic;
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
-    using System.Collections.Generic;
+    using LiveRoku.Core.Models;
 
     internal class LiveDownloadWorker {
         public bool IsStarted { get; private set; }
@@ -19,17 +20,16 @@
         public Action OnStreaming { get; set; }
         //private readonly
         private readonly FlvDownloader videoFetcher; //Download flv video
-        private readonly DanmakuWriter dmWriter;
+        private DanmakuWriter dmWriter;
         private readonly ILogger logger;
         private VideoInfo videoInfo;
         private SimpleMission record;
         private bool dmToLocalRequired = true;
-        private CancellationTokenSource dmWritingSource;
+        private CancellationTokenSource dmWritingCTS;
 
         public LiveDownloadWorker (ILogger logger, string userAgent) {
             this.logger = logger;
             this.videoFetcher = new FlvDownloader (userAgent, null);
-            this.dmWriter = new DanmakuWriter (Encoding.UTF8);
             this.videoFetcher.VideoInfoChecked = videoChecked;
             this.videoFetcher.IsRunningUpdated = downloadStatusUpdated;
             this.videoFetcher.OnDownloadCompleted = throwMission;
@@ -59,6 +59,7 @@
             videoFetcher.BytesReceived -= onStreaming;
             videoFetcher.BytesReceived += onStreaming;
             videoFetcher.updateSavePath (fileFullName);
+            dmWriter = new DanmakuWriter(Encoding.UTF8);
             return videoFetcher.startAsync (flvAddress);
         }
 
@@ -67,7 +68,7 @@
             IsStarted = false;
             videoFetcher.BytesReceived -= onStreaming;
             videoFetcher.stop ();
-            dmWriter.stop (force);
+            dmWriter?.stop (force);
         }
 
         public void dispose () {
@@ -121,15 +122,15 @@
             record.BeginTime = DateTime.Now;
             videoFetcher.BytesReceived -= onStreaming;
             logger.log (Level.Info, "Streaming check.....");
-            if (dmWritingSource?.Token.CanBeCanceled == true) {
-                dmWritingSource.Cancel ();
+            if (dmWritingCTS?.Token.CanBeCanceled == true) {
+                dmWritingCTS.Cancel ();
             }
-            dmWritingSource = new CancellationTokenSource ();
+            dmWritingCTS = new CancellationTokenSource ();
             Task.Run (async () => {
                 dmWriter.stop (force : true);
                 if (!dmToLocalRequired) return;
                 await activeWriteDanmaku ();
-            }, dmWritingSource.Token);
+            }, dmWritingCTS.Token);
             OnStreaming?.Invoke();
         }
 

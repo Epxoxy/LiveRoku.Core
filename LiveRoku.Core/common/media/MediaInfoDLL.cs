@@ -18,7 +18,7 @@ using System.Runtime.InteropServices;
 
 #pragma warning disable 1591 // Disable XML documentation warnings
 
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Common.Media {
     public enum StreamKind {
         General,
         Video,

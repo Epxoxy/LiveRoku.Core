@@ -48,6 +48,7 @@
     <Compile Include="fetcher\IMission.cs" />
     <Compile Include="logger\ILogHandler.cs" />
     <Compile Include="logger\ILogger.cs" />
+    <Compile Include="model\DanmakuOptions.cs" />
     <Compile Include="setting\AbstractSettingsBase.cs" />
     <Compile Include="setting\EasySettings.cs" />
     <Compile Include="model\ILowList.cs" />

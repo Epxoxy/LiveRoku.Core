@@ -1,8 +1,9 @@
 ﻿namespace LiveRoku.Core {
     using System.Threading.Tasks;
     using System;
-    using Base.Logger;
-    using Base;
+    using LiveRoku.Base.Logger;
+    using LiveRoku.Base;
+    using LiveRoku.Core.Models;
 
     internal interface ILiveEventEmitter : ILiveProgressBinder, IStatusBinder {
         ILogger Logger { get; }
@@ -95,11 +96,11 @@
             Task.Run (() => {
                 Parallel.ForEach (host, target => {
                     if (null != target) {
-                        try { action.Invoke (target); }
+                        try { lock(target)action.Invoke (target); }
                         catch (Exception e) {
-                            var msg = $"boardcast error in {typeof (T).Name}.{action.Method.Name} : {e.Message}";
+                            var msg = $"boardcast error in {typeof (T).Name}.{action.Method.Name} : {e.ToString()}";
                             Logger?.log (Level.Error, msg);
-                            System.Diagnostics.Debug.WriteLine (msg);
+                            System.Diagnostics.Debug.WriteLine (msg, "Error");
                         }
                     }
                 });

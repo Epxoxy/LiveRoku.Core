@@ -18,10 +18,8 @@
                     try {
                         resolveVersion2 (ref d, JObject.Parse (jsonText));
                     } catch (Exception e) {
-                        System.Diagnostics.Debug.WriteLine (jsonText);
-                        System.Diagnostics.Debug.WriteLine (e.Message);
-                        System.Diagnostics.Debug.WriteLine (e.TargetSite);
-                        //e.printStackTrace();
+                        System.Diagnostics.Debug.WriteLine (jsonText, nameof(parse));
+                        System.Diagnostics.Debug.WriteLine (e.ToString(), nameof(parse));
                     }
                     break;
                 default:
@@ -35,16 +33,16 @@
             switch (cmd) {
                 case "LIVE":
                     d.MsgType = MsgTypeEnum.LiveStart;
-                    d.roomID = obj["roomid"].ToString ();
+                    d.RoomID = obj["roomid"].ToString ();
                     break;
                 case "PREPARING":
                     d.MsgType = MsgTypeEnum.LiveEnd;
-                    d.roomID = obj["roomid"].ToString ();
+                    d.RoomID = obj["roomid"].ToString ();
                     break;
                 case "DANMU_MSG":
                     d.MsgType = MsgTypeEnum.Comment;
                     if (obj.TryGetValue("roomid", out JToken roomId))
-                        d.roomID = roomId?.ToString();
+                        d.RoomID = roomId?.ToString();
                     resolveDanmakuMsg (ref d, obj);
                     break;
                 case "SEND_GIFT":
@@ -63,8 +61,9 @@
                     d.MsgType = MsgTypeEnum.Welcome;
                     d.UserName = obj["data"]["uname"].ToString ();
                     d.UserID = obj["data"]["uid"].ToObject<int> ();
-                    d.isVIP = true;
-                    d.isAdmin = obj["data"]["isadmin"].ToString () == "1";
+                    d.IsVIP = true;
+                    //d.isAdmin = obj["data"]["isadmin"]?.ToString () == "1";
+                    d.IsAdmin = obj["data"]["is_admin"]?.ToObject<bool>() == true;
                     break;
                 case "WELCOME_GUARD":
                     d.MsgType = MsgTypeEnum.WelcomeGuard;
@@ -108,14 +107,15 @@
             d.CommentText = data[1].ToString ();
             d.UserID = data[2][0].ToObject<int> ();
             d.UserName = data[2][1].ToString ();
-            d.isAdmin = data[2][2].ToString () == "1";
-            d.isVIP = data[2][3].ToString () == "1";
+            d.IsAdmin = data[2][2].ToString () == "1";
+            d.IsVIP = data[2][3].ToString () == "1";
             //Get text only danmaku extension
-            d.DmType = Convert.ToInt32 (data[0][1]);
-            d.Fontsize = Convert.ToInt32 (data[0][2]);
-            d.Color = Convert.ToInt32 (data[0][3]);
-            d.SendTimestamp = Convert.ToInt64 (data[0][4]);
-            d.UserHash = data[0][7].ToString ();
+            d.CommentOptions.CommentText = d.CommentText;
+            d.CommentOptions.DmType = Convert.ToInt32 (data[0][1]);
+            d.CommentOptions.Fontsize = Convert.ToInt32 (data[0][2]);
+            d.CommentOptions.Color = Convert.ToInt32 (data[0][3]);
+            d.CommentOptions.SendTimestamp = Convert.ToInt64 (data[0][4]);
+            d.CommentOptions.UserHash = data[0][7].ToString ();
         }
     }
 }

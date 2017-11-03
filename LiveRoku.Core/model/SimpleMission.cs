@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Models {
     internal class SimpleMission : Base.IMission {
         public System.Collections.Generic.List<Base.IRoomInfo> RoomInfoHistory { get; internal set; }
         public string VideoObjectName { get; internal set; }

@@ -1,4 +1,4 @@
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Common {
     using System;
     public class DynamicBuffer {
         public byte[] Buffer { get; private set; }

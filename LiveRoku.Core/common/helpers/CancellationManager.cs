@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Common {
     using System;
     using System.Collections.Generic;
     using System.Threading;

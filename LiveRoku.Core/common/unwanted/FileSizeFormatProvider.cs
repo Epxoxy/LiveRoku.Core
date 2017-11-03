@@ -1,5 +1,5 @@
-﻿using System;
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
+    using System;
     public class FileSizeFormatProvider : IFormatProvider, ICustomFormatter {
         private const string fileSizeFormat = "fs";
         private const Decimal OneKiloByte = 1024M;

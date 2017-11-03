@@ -5,12 +5,16 @@
     using System.Threading.Tasks;
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
+    using LiveRoku.Core.Common;
+    using LiveRoku.Core.Models;
+
     internal class DanmakuCarrier {
         public bool IsChannelActive => transform?.isActive() == true;
-        public bool IsLiveOn { get; private set; }
+        public bool? IsLiveOn { get; private set; }
         public Action<long> HotUpdated { get; set; }
         public Action<DanmakuModel> DanmakuRecv { get; set; }
         public Action<bool> LiveStatusUpdated { get; set; }
+        public Action<MsgTypeEnum> LiveCommandRecv { get; set; }
         //private readonly
         private readonly ILogger logger;
         private readonly BiliApi biliApi; //API access
@@ -20,7 +24,7 @@
         //private
         private CancellationTokenSource timeout;
         private bool isEnabled;
-        private int realRoomId;
+        private string realRoomId;
         private NetResolverLite transform;
         private class ReconnectArgs {
             public long DelayReconnectMs { get; set; } = 500;
@@ -49,7 +53,7 @@
         }
 
         public void resetState () {
-            IsLiveOn = false;
+            IsLiveOn = default(bool?);
             reconnect.reset ();
             if (IsChannelActive) {
                 disconnect ();
@@ -73,7 +77,7 @@
             }
         }
 
-        public void connect (int realRoomId) {
+        public void connect (string realRoomId) {
             this.isEnabled = true;
             this.realRoomId = realRoomId;
             if (!IsChannelActive) {
@@ -81,10 +85,10 @@
             }
         }
 
-        private bool connectByApi (BiliApi biliApi, int realRoomId) {
-            if (biliApi.tryGetValidDmServerBean (realRoomId.ToString (), out BiliApi.ServerBean bean)) {
+        private bool connectByApi (BiliApi biliApi, string realRoomId) {
+            if (biliApi.tryGetValidDmServerBean (realRoomId.ToString (), out FetchServerResult rs)) {
                 logger.log (Level.Info, "Trying to connect to danmaku server.");
-                activeTransform (bean.Host, bean.Port, realRoomId);
+                activeTransform (rs.Host, rs.Port, realRoomId);
                 return true;
             } else {
                 logger.log (Level.Error, "Cannot get valid server address and port.");
@@ -92,7 +96,7 @@
             }
         }
 
-        private bool activeTransform (String host, int port, int realRoomId) {
+        private bool activeTransform (String host, int port, string realRoomId) {
             lock (keepOneTransform) {
                 if (IsChannelActive) return false;
                 //............
@@ -105,7 +109,7 @@
                 return true;
             }
         }
-
+        
         private void onActive () {
             logger.log (Level.Info, $"Connect to danmaku server ok.");
             reconnect.reset ();
@@ -122,10 +126,12 @@
                 //Update live status
                 updateToLiveStatus (false);
                 logger.log (Level.Info, "Message received : Live End.");
+                LiveCommandRecv?.Invoke(MsgTypeEnum.LiveStart);
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
                 updateToLiveStatus (true);
                 logger.log (Level.Info, "Message received : Live Start.");
+                LiveCommandRecv?.Invoke(MsgTypeEnum.LiveEnd);
             }
         }
 
@@ -169,10 +175,10 @@
             }, timeout.Token).Wait ();
             var delay = reconnect.DelayReconnectMs - used;
             if (delay > 0) {
+                logger.log(Level.Info, $"Trying to reconnect to danmaku server after {(delay) / (double)1000}s");
                 await Task.Delay (TimeSpan.FromMilliseconds (delay));
                 if (!isEnabled) return;
-                logger.log (Level.Info, $"Trying to reconnect to danmaku server after {(delay) / (double) 1000}s");
-            }
+            } else logger.log(Level.Info, $"Trying to reconnect to danmaku server.");
             //increase delay
             reconnect.DelayReconnectMs += (connectionOK ? 1000 : reconnect.RetryTimes * 2000);
             reconnect.RetryTimes++;

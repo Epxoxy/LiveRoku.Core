@@ -23,7 +23,8 @@
         }
 
         public override string ToString () {
-            return $"length[{length}],header[{headerLength}],devType:{devType},device:{device},msgType:{packetType}\n\tpayload[{payloadLength}]:{payload}";
+            return string.Format("length[{0}],header[{1}],devType:{2},device:{3},msgType:{4} --payload[{5}]:{6}", 
+                length, headerLength, devType, device, packetType, payloadLength, payload);
         }
     }
 

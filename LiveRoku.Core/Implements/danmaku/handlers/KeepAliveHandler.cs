@@ -1,22 +1,22 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core {
+    using LiveRoku.Core.Common;
+    using System;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Threading;
+    using System.Threading.Tasks;
     public class KeepAliveHandler : AbstractFlowResolver {
         private CancellationTokenSource heartbeatCts;
-        private int channelId;
+        private string channelId;
         private int retryTimes = 3;
 
-        public KeepAliveHandler (int channelId) {
+        public KeepAliveHandler (string channelId) {
             this.channelId = channelId;
         }
 
         [SuppressMessage ("Microsoft.Performance", "CS4014")]
         public override void onActive (ITransformContext ctx) {
             //Handshake
-            System.Diagnostics.Debug.WriteLine ("Invoke KeepAliveHandler.onConnected(ctx)", "INFO");
+            System.Diagnostics.Debug.WriteLine ("Invoke KeepAliveHandler.onConnected(ctx)", "KeepAlive");
             var tmpUid = (long) (1e14 + 2e14 * new Random ().NextDouble ());
             var payload = "{ \"roomid\":" + channelId + ", \"uid\":" + tmpUid + "}";
             var handshake = Packet.packSimple (PacketMsgType.Handshake, payload);
@@ -38,7 +38,7 @@ namespace LiveRoku.Core {
                 while (ctx.isActive ()) {
                     try {
                         ctx.writeAndFlush (pingBytes);
-                        System.Diagnostics.Debug.WriteLine ("heartbeat...", "INFO");
+                        System.Diagnostics.Debug.WriteLine ("heartbeat...", "KeepAlive");
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (errorTimes > retryTimes) break;
@@ -60,7 +60,7 @@ namespace LiveRoku.Core {
         }
 
         private void cancelHeartbeat() {
-            if(heartbeatCts!=null && heartbeatCts.Token.CanBeCanceled) {
+            if(heartbeatCts?.Token.CanBeCanceled == true) {
                 heartbeatCts.Cancel();
             }
         }

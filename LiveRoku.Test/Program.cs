@@ -13,18 +13,26 @@ namespace LiveRoku.Test {
         public string RoomId { get; set; }
         public string Folder { get; set; } = "C:/mnt/hd1/station/bilibili/test/testtemp";
         public string FileFormat { get; set; } = "{roomId}-{Y}-{M}-{d}-{H}-{m}-{s}.flv";
-        public string UserAgent { get; set; }
-        public bool DownloadDanmaku { get; set; } = true;
+        public bool DanmakuRequire { get; set; } = true;
+        public bool VideoRequire { get; set; } = true;
         public bool AutoStart { get; set; } = true;
+        public string UserAgent { get; set; }
     }
 
-    class Program : ILogHandler, IFetchArgsHost, ILiveProgressBinder {
-        public string RoomId => Args.RoomId;
+    class Program : StatusAndLiveProgressBinderBase, ILogHandler, IFetchArgsHost {
+
+        public string ShortRoomId => Args.RoomId;
+        public string RealRoomId => null;
+        public bool IsShortIdTheRealId => false;
+
         public string Folder => Args.Folder;
         public string FileFormat => Args.FileFormat;
-        public string UserAgent => Args.UserAgent;
-        public bool DownloadDanmaku => Args.DownloadDanmaku;
+
+        public bool DanmakuRequire => Args.DanmakuRequire;
+        public bool VideoRequire => Args.VideoRequire;
         public bool AutoStart => Args.AutoStart;
+        public string UserAgent => Args.UserAgent;
+
         private ILiveFetcher fetcher;
         private string sizeText;
         private int durationUpdateTimes = 0;
@@ -38,11 +46,11 @@ namespace LiveRoku.Test {
             this.fetcher = fetcher;
         }
 
-        public void onStatusUpdate (bool isOn) {
+        public override void onStatusUpdate (bool isOn) {
             Debug.WriteLine ($"Status --> {(isOn ? "on" : "off")}");
         }
 
-        public void onDurationUpdate (long duration, string timeText) {
+        public override void onDurationUpdate (long duration, string timeText) {
             Debug.WriteLine ($"Downloading ..... {sizeText}[{timeText}]");
             ++durationUpdateTimes;
             if (durationUpdateTimes > 10) {
@@ -53,15 +61,15 @@ namespace LiveRoku.Test {
             }
         }
 
-        public void onDownloadSizeUpdate (long totalSize, string sizeText) {
+        public override void onDownloadSizeUpdate (long totalSize, string sizeText) {
             this.sizeText = sizeText;
         }
 
-        public void onBitRateUpdate (long bitRate, string bitRateText) {
+        public override void onBitRateUpdate (long bitRate, string bitRateText) {
             Debug.WriteLine ("BitRate ..... " + bitRateText);
         }
 
-        public void onHotUpdate (long onlineCount) {
+        public override void onHotUpdate (long onlineCount) {
             fetcher.Logger.log (Level.Info, "Hot updated ..... " + onlineCount);
         }
 
@@ -69,8 +77,22 @@ namespace LiveRoku.Test {
             Debug.WriteLine (message, level.ToString ());
         }
 
-        public void onMissionComplete (IMission mission) {
+        public override void onMissionComplete (IMission mission) {
             //TODO Implement it
+        }
+
+        public override void onPreparing() {
+            Debug.WriteLine("base.onPreparing()");
+        }
+
+        public override void onWaiting() {
+            Debug.WriteLine("base.onWaiting()");
+        }
+        public override void onStopped() {
+            Debug.WriteLine("base.onStopped()");
+        }
+        public override void onStreaming() {
+            Debug.WriteLine("base.onStreaming()");
         }
 
         static void runSafely (Action doWhat) {
@@ -82,6 +104,10 @@ namespace LiveRoku.Test {
         }
 
         static void Main (string[] args) {
+            var logTracker = new LogDateTimeTraceListener(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug.txt"));
+            Trace.Listeners.Add(logTracker);
+            Trace.AutoFlush = true;
+
             //UIThread for plugin of which need to show WPF ui element
             var uiThread = new Thread (() => {
                 var app = new Application();
@@ -118,7 +144,7 @@ namespace LiveRoku.Test {
             sw.Restart ();
 
             //Init plugins
-            Parallel.ForEach (ctx.Plugins, plugin => {
+            ctx.Plugins.ForEach (plugin => {
                 runSafely (() => plugin.onInitialize (ctx.AppLocalData.getAppSettings ()));
                 runSafely (() => plugin.onAttach (ctx));
             });
@@ -130,6 +156,7 @@ namespace LiveRoku.Test {
             argsHost.bindFetcher (fetcher);
             fetcher.Logger.LogHandlers.add (argsHost);
             fetcher.LiveProgressBinders.add (argsHost);
+            fetcher.StatusBinders.add(argsHost);
             //fetcher.Extra.put ("cancel-flv", true);
             fetcher.DanmakuHandlers.add (danmaku => {
                 if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) return;
@@ -152,6 +179,21 @@ namespace LiveRoku.Test {
             sw.Restart ();
             ctx.saveAppData ();
             Debug.WriteLine ($"Save settings used {sw.ElapsedMilliseconds}");
+        }
+    }
+
+    internal class LogDateTimeTraceListener : TextWriterTraceListener {
+        private object locker = new object();
+        public LogDateTimeTraceListener(string path) : base(path) { }
+
+        public override void WriteLine(string message, string category) {
+            lock (locker)
+                base.WriteLine(string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}]: {2}", DateTime.Now, category, message.Replace("\n", Environment.NewLine)));
+        }
+
+        public override void WriteLine(string message) {
+            lock (locker)
+                base.WriteLine(string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] : {1}", DateTime.Now, message.Replace("\n", Environment.NewLine)));
         }
     }
 }

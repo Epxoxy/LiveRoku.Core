@@ -1,8 +1,9 @@
 ﻿namespace LiveRoku.Core {
+    using LiveRoku.Core.Common;
     internal class PacketDecoder {
         public object decode(ByteBuffer input) {
             if (input == null || input.ReadableBytes < Packet.HeaderSize) {
-                System.Diagnostics.Debug.WriteLine("in.readableBytes() <= HeaderSize");
+                System.Diagnostics.Debug.WriteLine("in.readableBytes() <= HeaderSize", nameof(decode));
                 return null;
             }
             input.markReaderIndex();
@@ -10,7 +11,7 @@
             int packetLength = input.readInt();
             int payloadLength = packetLength - 4;
             if (packetLength < Packet.HeaderSize || input.ReadableBytes < payloadLength) {
-                System.Diagnostics.Debug.WriteLine("in.resetReaderIndex() " + packetLength + ", " + input.ReadableBytes);
+                System.Diagnostics.Debug.WriteLine($"in.resetReaderIndex() {packetLength}/{input.ReadableBytes}", nameof(decode));
                 input.resetReaderIndex();
                 return null;
             }

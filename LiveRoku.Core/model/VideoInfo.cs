@@ -1,4 +1,4 @@
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Models {
     public class VideoInfo {
         public long Bytes { get; internal set; }
         public long BitRate { get; internal set; }

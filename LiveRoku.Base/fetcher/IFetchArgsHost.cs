@@ -1,10 +1,15 @@
 ﻿namespace LiveRoku.Base{
     //Model interface for requesting download live video
     public interface IFetchArgsHost {
-        string RoomId { get; }
+        //Room id
+        string ShortRoomId { get; }
+        bool IsShortIdTheRealId { get; }
+        //Location
         string Folder { get; }
         string FileFormat { get; }
-        bool DownloadDanmaku { get; }
+        //Download control
+        bool DanmakuRequire { get; }
+        bool VideoRequire { get; }
         bool AutoStart { get; }
         string UserAgent { get; }
     }

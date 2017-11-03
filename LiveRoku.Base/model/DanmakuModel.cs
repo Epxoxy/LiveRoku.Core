@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 
 //Copyright BiliDMLib
-namespace LiveRoku.Base
-{
-    public enum MsgTypeEnum
-    {
+namespace LiveRoku.Base {
+    public enum MsgTypeEnum {
         /// <summary>
         /// 彈幕
         /// </summary>
@@ -50,8 +48,7 @@ namespace LiveRoku.Base
 
     }
 
-    public class DanmakuModel
-    {
+    public class DanmakuModel {
         /// <summary>
         /// 消息類型
         /// </summary>
@@ -69,8 +66,7 @@ namespace LiveRoku.Base
         /// 彈幕用戶
         /// </summary>
         [Obsolete("请使用 UserName")]
-        public string CommentUser
-        {
+        public string CommentUser {
             get { return UserName; }
             set { UserName = value; }
         }
@@ -114,8 +110,7 @@ namespace LiveRoku.Base
         /// 禮物用戶
         /// </summary>
         [Obsolete("请使用 UserName")]
-        public string GiftUser
-        {
+        public string GiftUser {
             get { return UserName; }
             set { UserName = value; }
         }
@@ -163,7 +158,7 @@ namespace LiveRoku.Base
         /// <item><see cref="MsgTypeEnum.GiftSend"/></item>
         /// </list></para>
         /// </summary>
-        public bool isAdmin { get; set; }
+        public bool IsAdmin { get; set; }
 
         /// <summary>
         /// 是否VIP用戶(老爺)
@@ -172,12 +167,12 @@ namespace LiveRoku.Base
         /// <item><see cref="MsgTypeEnum.Welcome"/></item>
         /// </list></para>
         /// </summary>
-        public bool isVIP { get; set; }
+        public bool IsVIP { get; set; }
 
         /// <summary>
         /// <see cref="MsgTypeEnum.LiveStart"/>,<see cref="MsgTypeEnum.LiveEnd"/> 事件对应的房间号
         /// </summary>
-        public string roomID { get; set; }
+        public string RoomID { get; set; }
 
         /// <summary>
         /// 原始数据, 高级开发用
@@ -189,31 +184,18 @@ namespace LiveRoku.Base
         /// </summary>
         public int JSON_Version { get; set; }
 
-        #region Text only danmaku extension
-        public int DmType { get; set; } = 1;
-        public int Fontsize { get; set; }
-        public int Color { get; set; }
-        public long SendTimestamp { get; set; }
-        public string UserHash { get; set; }
-        public readonly long CreateTime;
+        public DanmakuOptions CommentOptions { get; private set; }
 
-        #endregion
+        public DanmakuModel() {
+            CommentOptions = new DanmakuOptions(0);
+        }
 
-        public DanmakuModel() { }
-
-        public DanmakuModel(string JSON, long createTime, int version = 1)
-        {
+        public DanmakuModel(string JSON, long createTime, int version = 1) {
+            CommentOptions = new DanmakuOptions(createTime);
             RawData = JSON;
-            CreateTime = createTime;
             JSON_Version = version;
         }
 
-        public string ToString(long startTime)
-        {
-            return
-                $"<d p=\"{Convert.ToDouble(CreateTime - startTime) / 1000},{DmType},{Fontsize},{Color},{SendTimestamp},0,{UserHash},0\">{CommentText}</d>";
-        }
-
     }
-    
+
 }

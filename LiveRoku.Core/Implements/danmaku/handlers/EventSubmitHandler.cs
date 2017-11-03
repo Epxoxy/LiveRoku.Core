@@ -1,5 +1,6 @@
 ﻿namespace LiveRoku.Core {
     using System;
+    using LiveRoku.Core.Common;
     public class EventSubmitHandler : AbstractFlowResolver {
         public Action Active;
         public Action<Exception> InActive;
@@ -17,6 +18,10 @@
 
         public override void onActive (ITransformContext ctx) {
             Active?.Invoke ();
+            /*System.Threading.Tasks.Task.Run(async () => {
+                await System.Threading.Tasks.Task.Delay(20000);
+                OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveEnd });
+            });*/
         }
 
         public override void onRead (ITransformContext ctx, object data) {
@@ -24,7 +29,7 @@
                 checkPacket ((Packet) data);
             }
         }
-
+        
         private void checkPacket (Packet packet) {
             switch (packet.packetType) {
                 case 1: //online count param

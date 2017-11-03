@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Common {
     using System;
     using System.Diagnostics;
     using System.Net.Sockets;
@@ -20,7 +20,7 @@
                 if (isAlive) return Task.FromResult (false);
                 isAlive = true;
             }
-            client = new TcpClient ();
+            client = new TcpClient();
             try {
                 client.Connect (host, port);
                 stream = client.GetStream ();
@@ -43,10 +43,11 @@
                     try {
                         while ((readSize = stream.Read (cache, 0, cache.Length)) > 0) {
                             buffer.writeBytes (cache, 0, readSize);
-                            Debug.WriteLine ("## read ## " + readSize);
+                            Debug.WriteLine ("--- read --- " + readSize, "network");
                             ctx.fireRead (buffer);
                         }
                     } catch (Exception e) {
+                        Type type = e.GetType();
                         e.printStackTrace();
                         ctx.fireException (e);
                     }

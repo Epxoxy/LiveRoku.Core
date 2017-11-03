@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Models {
     //A list wrapper for provider low function
     public class LowList<T> : Base.ILowList<T>, IEnumerable<T> where T : class {
         private List<T> op = new List<T>();

@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Common {
     using System;
     public class ByteBuffer : ByteBufferBase {
         private object locker = new object ();

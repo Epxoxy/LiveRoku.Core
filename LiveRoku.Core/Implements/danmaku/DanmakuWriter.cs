@@ -77,6 +77,7 @@ namespace LiveRoku.Core {
                         //1.Wait from something enqueue
                         while (IsRunning && danmakuQueue.IsEmpty) {
                             if (++idleTimes > 5 && writeTimes > 0) {
+                                writeTimes = 0;
                                 sWriter?.Flush (); //Flush when idle
                             }
                             idleTimes %= 6; //Limit in 0~5
@@ -88,8 +89,9 @@ namespace LiveRoku.Core {
                         if (danmaku == null) continue;
                         //3.Write to stream
                         lock (sWriter) {
-                            sWriter.WriteLine (danmaku.ToString (baseTime));
-                            if (writeTimes++ > 10) {
+                            sWriter.WriteLine (danmaku.CommentOptions.ToString (baseTime));
+                            if (++writeTimes > 10) {
+                                writeTimes = 0;
                                 sWriter.Flush ();
                             }
                         }

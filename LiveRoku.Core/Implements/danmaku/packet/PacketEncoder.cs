@@ -1,4 +1,5 @@
 ﻿namespace LiveRoku.Core{
+    using LiveRoku.Core.Common;
     internal class PacketEncoder{
         public ByteBuffer encode(Packet packet, ByteBuffer output){
             byte[] payload = System.Text.Encoding.UTF8.GetBytes(packet.payload);
