@@ -77,18 +77,18 @@
             }
         }
 
-        public void connect (string realRoomId) {
+        public void connectAsync (string realRoomId) {
             this.isEnabled = true;
             this.realRoomId = realRoomId;
             if (!IsChannelActive) {
-                connectByApi (biliApi, realRoomId);
+                connectByApiAsync (biliApi, realRoomId);
             }
         }
 
-        private bool connectByApi (BiliApi biliApi, string realRoomId) {
+        private bool connectByApiAsync (BiliApi biliApi, string realRoomId) {
             if (biliApi.tryGetValidDmServerBean (realRoomId.ToString (), out FetchServerResult rs)) {
                 logger.log (Level.Info, "Trying to connect to danmaku server.");
-                activeTransform (rs.Host, rs.Port, realRoomId);
+                activeTransformAsync (rs.Host, rs.Port, realRoomId);
                 return true;
             } else {
                 logger.log (Level.Error, "Cannot get valid server address and port.");
@@ -96,7 +96,7 @@
             }
         }
 
-        private bool activeTransform (String host, int port, string realRoomId) {
+        private bool activeTransformAsync (String host, int port, string realRoomId) {
             lock (keepOneTransform) {
                 if (IsChannelActive) return false;
                 //............
@@ -126,12 +126,12 @@
                 //Update live status
                 updateToLiveStatus (false);
                 logger.log (Level.Info, "Message received : Live End.");
-                LiveCommandRecv?.Invoke(MsgTypeEnum.LiveStart);
+                LiveCommandRecv?.Invoke(MsgTypeEnum.LiveEnd);
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
                 updateToLiveStatus (true);
                 logger.log (Level.Info, "Message received : Live Start.");
-                LiveCommandRecv?.Invoke(MsgTypeEnum.LiveEnd);
+                LiveCommandRecv?.Invoke(MsgTypeEnum.LiveStart);
             }
         }
 
@@ -182,7 +182,7 @@
             //increase delay
             reconnect.DelayReconnectMs += (connectionOK ? 1000 : reconnect.RetryTimes * 2000);
             reconnect.RetryTimes++;
-            connectByApi (biliApi, realRoomId);
+            connectByApiAsync (biliApi, realRoomId);
         }
 
     }

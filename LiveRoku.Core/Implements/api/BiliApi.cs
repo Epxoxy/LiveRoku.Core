@@ -5,6 +5,8 @@ namespace LiveRoku.Core {
     using LiveRoku.Base.Logger;
     using Newtonsoft.Json.Linq;
     using LiveRoku.Core.Models;
+    using System.Diagnostics;
+
     public class BiliApi {
 
         public static class Const {
@@ -103,7 +105,7 @@ namespace LiveRoku.Core {
         }
 
         public string getRealRoomId (string originalRoomId) {
-            logger.log (Level.Info, "Trying to get real roomId");
+            Debug.WriteLine("Trying to get real roomId", "biliApi");
 
             var roomWebPageUrl = "https://api.live.bilibili.com/room/v1/Room/room_init?id=" + originalRoomId;
             var wc = newWebClient ();
@@ -129,7 +131,7 @@ namespace LiveRoku.Core {
                 return roomId;
             } catch(Exception e) {
                 logger.log(Level.Error, "Fail Get Real Room Id: " + message?.ToString());
-                System.Diagnostics.Debug.WriteLine("Parse roomId fail, "+e.ToString(), "biliApi");
+                Debug.WriteLine("Parse roomId fail, "+e.ToString(), "biliApi");
             }
             
             return null;
@@ -208,7 +210,7 @@ namespace LiveRoku.Core {
                 return null;
             try {
                 var data = JObject.Parse (infoJson)["data"];
-                System.Diagnostics.Debug.WriteLine ("RoomInfo: " + infoJson, "BiliApi");
+                Debug.WriteLine ("RoomInfo: " + infoJson, "biliApi");
                 //logger.log(Level.Info, infoJson);
                 if (data != null && data.Type != JTokenType.Null && data.Type != JTokenType.Undefined &&
                     data.HasValues) {
@@ -224,8 +226,8 @@ namespace LiveRoku.Core {
                         TimeLine = data.Value<int>("LIVE_TIMELINE"),
                         Anchor = data.Value<string>("ANCHOR_NICK_NAME")
                     };
-                    logger.log (Level.Info, $"LiveStatus {liveStatusText}, _status {statusText} ");
-                    logger.log (Level.Info, $"RoomTitle {title}");
+                    Debug.WriteLine($"LiveStatus {liveStatusText}, _status {statusText} ", "biliApi");
+                    Debug.WriteLine($"RoomTitle {title}", "biliApi");
                     return detail;
                 }
             } catch (Exception e) {

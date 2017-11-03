@@ -27,6 +27,8 @@ namespace LiveRoku.Core {
         private readonly LiveDownloadWorker downloader;
         private readonly int requestTimeout;
         private readonly object locker = new object();
+        private readonly object downloadLocker = new object();
+        private LastContinuableInvoker continuable = null;
 
         public LiveFetchController (IFetchArgsHost basicArgs, int requestTimeout) {
             var userAgent = basicArgs?.UserAgent;
@@ -42,7 +44,7 @@ namespace LiveRoku.Core {
             dmCarrier = new DanmakuCarrier(this, accessApi) {
                 HotUpdated = base.onHotUpdate,
                 LiveStatusUpdated = base.onStatusUpdate,
-                LiveCommandRecv = confirmDownloadForLiveCommand,
+                LiveCommandRecv = confirmDownloadWhen,
                 DanmakuRecv = dm => {
                     this.downloader.danmakuToLocal(dm);
                     base.danmakuRecv(dm);
@@ -57,14 +59,14 @@ namespace LiveRoku.Core {
                     //Back to waiting status
                     if (IsRunning) base.onWaiting();
                 },
-                OnStreaming = () => {
+                Streaming = () => {
                     this.confirmChatCenter();
                     base.onStreaming();
                 }
             };
         }
         public LiveFetchController (IFetchArgsHost basicArgs):
-            this (basicArgs, 5000) { }
+            this (basicArgs, 20000) { }
 
         public void Dispose () {
             stop ();
@@ -89,7 +91,7 @@ namespace LiveRoku.Core {
         //.............
         //Start or Stop
         //.............
-        public void stop (bool force = false) => cancelFetch (force, false);
+        public void stop (bool force = false) => cancelDownload (force, false);
 
         public void start () {
             if (IsRunning) return;
@@ -97,7 +99,7 @@ namespace LiveRoku.Core {
             network.assumeAvailability (true);
             network.attach (available => {
                 Logger.log (Level.Info, $"Network Availability ->  {available}");
-                if (!available) cancelFetch (false, true);
+                if (!available) cancelDownload (false, true);
                 else if (!IsRunning) start ();
             });
             IsRunning = true;
@@ -121,11 +123,11 @@ namespace LiveRoku.Core {
                 //Preparing signal
                 this.Extra.put("video-require", settings.VideoRequire);
                 this.onPreparing();
-                fetchLiveImpl();
+                prepareDownload();
             }
         }
 
-        private void cancelFetch (bool force, bool callByInternal) {
+        private void cancelDownload (bool force, bool callByInternal) {
             Debug.WriteLine ("stopImpl invoke");
             if (!callByInternal) { //Network watcher needless
                 network.detach (); //detach now
@@ -135,13 +137,13 @@ namespace LiveRoku.Core {
             if (IsRunning) {
                 IsRunning = false;
                 dmCarrier.disconnect ();
-                downloader.stop (force);
+                downloader.stopAsync (force);
                 Logger.log (Level.Info, "Downloader stopped.");
                 this.onStopped ();
             }
         }
 
-        private void fetchLiveImpl () {
+        private void prepareDownload () {
             //Prepare to start task
             //Cancel when no result back over five second
             //Prepare real roomId and flv url
@@ -160,8 +162,8 @@ namespace LiveRoku.Core {
                         Logger.log(Level.Info, $"All ready, fetch: {settings.FlvAddress}");
                         //All parameters ready
                         base.onWaiting();
-                        downloadThrough(downloader, settings);
-                        dmCarrier.connect(settings.RealRoomId);
+                        dmCarrier.connectAsync(settings.RealRoomId);
+                        downloadAsyncBy(downloader, settings);
                     } else {
                         Logger.log(Level.Error, $"Get room detail fail, RealRoomId : {settings.RealRoomId}");
                         stop();
@@ -170,12 +172,10 @@ namespace LiveRoku.Core {
             });
         }
 
-        private Task downloadThrough(LiveDownloadWorker downloader, FetchArgsBean args) {
+        private Task<bool> downloadAsyncBy(LiveDownloadWorker downloader, FetchArgsBean args) {
             var fileName = getFileFullName(args.FileNameFormat, args.Folder, args.RealRoomId, DateTime.Now);
             if (args.VideoRequire) {
-                lock (downloader) {
-                    return downloader.download(args.FlvAddress, fileName, args.DanmakuRequire);
-                }
+                return downloader.downloadAsync(args.FlvAddress, fileName, args.DanmakuRequire);
             } else {
                 Logger.log(Level.Info, $"No video mode");
                 return Task.FromResult(false);
@@ -188,56 +188,62 @@ namespace LiveRoku.Core {
         private IWebClient makeNewWebClient() {
             return new StandardWebClient {
                 Encoding = System.Text.Encoding.UTF8,
-                RequestTimeout = requestTimeout * 3
+                RequestTimeout = requestTimeout
             };
         }
 
         private void confirmChatCenter () {
             runOnlyOne (() => {
                 if (dmCarrier.IsChannelActive) return;
-                dmCarrier.connect (settings.RealRoomId);
+                dmCarrier.connectAsync (settings.RealRoomId);
             }, nameof (confirmChatCenter));
+        }
+
+        private void confirmDownloadWhen (MsgTypeEnum type) {
+            if (!settings.VideoRequire) return;
+            if (type == MsgTypeEnum.LiveEnd) {
+                continuable?.reset();
+                cancelMgr.cancel (nameof (confirmDownloadWhen));
+                cancelMgr.remove (nameof (confirmDownloadWhen));
+                Debug.WriteLine("Trying to stop downloader because live end.", "tasks");
+                downloader.stopAsync (false);
+            } else if (settings.AutoStart) {
+                //enterTimes = 0;//Just need to know has newest request
+                //Keep one enter, sometimes LiveStart msg will send over one time
+                continuable = continuable ?? new LastContinuableInvoker(() => {
+                    Debug.WriteLine($"{nameof(LastContinuableInvoker)} invoking", "tasks");
+                    runOnlyOne(token => {
+                        if (!isRestartDownloadAllow() || !settings.fetchUrlAndRealId()) {
+                            Debug.WriteLine("Restart not allow or fetch url/id fail.", "tasks");
+                            return;
+                        }
+                        Debug.WriteLine($"Trying to restart downloader.", "task");
+                        if (token.IsCancellationRequested)
+                            return;
+                        Logger.log(Level.Info, $"Flv address updated : {settings.FlvAddress}");
+                        //Reconfirm download required and not start 
+                        if (isRestartDownloadAllow()) {
+                            downloadAsyncBy(downloader, settings).Wait();
+                        }
+                    }, nameof(confirmDownloadWhen), requestTimeout, () => {
+                        //Stop when timeout if download not start
+                        Debug.WriteLine($"Restart downloader cancelled.Streaming -{downloader.IsStreaming}", "tasks");
+                        if (!downloader.IsStreaming) {
+                            downloader.stopAsync(true);
+                        }
+                        continuable.fireActionOk();
+                    }).ContinueWith(task => {
+                        Debug.WriteLine($"Restart downloader Completed.Streaming -{downloader.IsStreaming}", "tasks");
+                        continuable.fireActionOk();
+                    });
+                });
+                Debug.WriteLine($"{nameof(LastContinuableInvoker)} add invoke", "tasks");
+                continuable.invoke();
+            }
         }
 
         private bool isRestartDownloadAllow() {
             return IsRunning && dmCarrier.IsLiveOn == true && !downloader.IsStreaming;
-        }
-
-        private CompleteFirstInvoker invoker = null;
-        private void confirmDownloadForLiveCommand (MsgTypeEnum type) {
-            if (!settings.VideoRequire) return;
-            if (type == MsgTypeEnum.LiveEnd) {
-                invoker?.revoke();
-                cancelMgr.cancel (nameof (confirmDownloadForLiveCommand));
-                cancelMgr.remove (nameof (confirmDownloadForLiveCommand));
-                Logger.log(Level.Info, "Trying to stop downloader.");
-                downloader.stop (false);
-            } else if (settings.AutoStart) {
-                //enterTimes = 0;//Just need to know has newest request
-                //Keep one enter, sometimes LiveStart msg will send over one time
-                invoker = invoker ?? new CompleteFirstInvoker(() => {
-                    runOnlyOne(tryToRestartDownload, nameof(confirmDownloadForLiveCommand), requestTimeout * 2, () => {
-                        //Stop when timeout if download not start
-                        if (!downloader.IsStreaming) {
-                            downloader.stop(true);
-                        }
-                    }).ContinueWith(task => {
-                        invoker.fireActionOk();
-                    });
-                });
-                invoker.invoke();
-            }
-        }
-        
-        private void tryToRestartDownload(CancellationToken token) {
-            if (!isRestartDownloadAllow() || !settings.fetchUrlAndRealId())
-                return;
-            token.ThrowIfCancellationRequested();
-            Logger.log(Level.Info, $"Flv address updated : {settings.FlvAddress}");
-            //Reconfirm download required and not start 
-            if (isRestartDownloadAllow()) {
-                downloadThrough(downloader, settings).Wait();
-            }
         }
 
         //...........
@@ -261,29 +267,33 @@ namespace LiveRoku.Core {
         }
 
         private Task runOnlyOne(Action<CancellationToken> action, string tokenKey, int timeout = 0, Action onCancelled = null) {
-            var cts = timeout > 0 ? new CancellationTokenSource() :
-                new CancellationTokenSource(timeout);
-            if (onCancelled != null)
-                cts.Token.Register(onCancelled);
+            var cts = timeout > 0 ? new CancellationTokenSource(timeout) :
+                new CancellationTokenSource();
+            cts.Token.Register(()=> {
+                Debug.WriteLine($"Cancel {tokenKey}", "tasks");
+                onCancelled?.Invoke();
+            });
             cancelMgr.cancel(tokenKey);
             cancelMgr.set(tokenKey, cts);
-            return Task.Run(()=>action?.Invoke(cts.Token)).ContinueWith(task => {
+            return Task.Run(()=>action?.Invoke(cts.Token), cts.Token).ContinueWith(task => {
                 cancelMgr.remove(tokenKey);
                 task.Exception?.printOn(Logger);
-            }, cts.Token);
+            });
         }
 
         private Task runOnlyOne (Action action, string tokenKey, int timeout = 0, Action onCancelled = null) {
-            var cts = timeout > 0 ? new CancellationTokenSource () :
-                new CancellationTokenSource (timeout);
-            if (onCancelled != null)
-                cts.Token.Register(onCancelled);
+            var cts = timeout > 0 ? new CancellationTokenSource (timeout) :
+                new CancellationTokenSource ();
+            cts.Token.Register(() => {
+                Debug.WriteLine($"Cancel {tokenKey}", "tasks");
+                onCancelled?.Invoke();
+            });
             cancelMgr.cancel (tokenKey);
             cancelMgr.set (tokenKey, cts);
-            return Task.Run (action).ContinueWith (task => {
+            return Task.Run (action, cts.Token).ContinueWith (task => {
                 cancelMgr.remove (tokenKey);
                 task.Exception?.printOn (Logger);
-            }, cts.Token);
+            });
         }
 
         private bool isValueTrue (IDictionary<string, object> dict, string key) {

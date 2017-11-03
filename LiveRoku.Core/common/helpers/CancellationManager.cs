@@ -42,7 +42,7 @@
         public void cancel (string key) {
             CancellationTokenSource exist = null;
             if (ctsTemp.TryGetValue (key, out exist)) {
-                System.Diagnostics.Debug.WriteLine ("try cancel " + key);
+                System.Diagnostics.Debug.WriteLine ("try cancel " + key, "cancelMgr");
                 cancel (exist);
             }
         }

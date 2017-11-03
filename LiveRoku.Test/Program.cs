@@ -47,11 +47,11 @@ namespace LiveRoku.Test {
         }
 
         public override void onStatusUpdate (bool isOn) {
-            Debug.WriteLine ($"Status --> {(isOn ? "on" : "off")}");
+            Debug.WriteLine ($"Status --> {(isOn ? "on" : "off")}", "program");
         }
 
         public override void onDurationUpdate (long duration, string timeText) {
-            Debug.WriteLine ($"Downloading ..... {sizeText}[{timeText}]");
+            Debug.WriteLine ($"Downloading ..... {sizeText}[{timeText}]", "program");
             ++durationUpdateTimes;
             if (durationUpdateTimes > 10) {
                 durationUpdateTimes = 0;
@@ -66,7 +66,7 @@ namespace LiveRoku.Test {
         }
 
         public override void onBitRateUpdate (long bitRate, string bitRateText) {
-            Debug.WriteLine ("BitRate ..... " + bitRateText);
+            Debug.WriteLine ("BitRate ..... " + bitRateText, "program");
         }
 
         public override void onHotUpdate (long onlineCount) {
@@ -82,17 +82,17 @@ namespace LiveRoku.Test {
         }
 
         public override void onPreparing() {
-            Debug.WriteLine("base.onPreparing()");
+            Debug.WriteLine("base.onPreparing()", "program");
         }
 
         public override void onWaiting() {
-            Debug.WriteLine("base.onWaiting()");
+            Debug.WriteLine("base.onWaiting()", "program");
         }
         public override void onStopped() {
-            Debug.WriteLine("base.onStopped()");
+            Debug.WriteLine("base.onStopped()", "program");
         }
         public override void onStreaming() {
-            Debug.WriteLine("base.onStreaming()");
+            Debug.WriteLine("base.onStreaming()", "program");
         }
 
         static void runSafely (Action doWhat) {

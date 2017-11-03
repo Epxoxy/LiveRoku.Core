@@ -6,10 +6,7 @@ namespace LiveRoku.Core {
     using LiveRoku.Core.Models;
     public delegate void BytesReceived (long totalBytes);
     internal class FlvDownloader : FileDownloaderBase {
-
-        public event BytesReceived BytesReceived;
-        public Action<VideoInfo> VideoInfoChecked;
-        public Action<bool> IsRunningUpdated;
+        
         public VideoInfo LastestVideoCheckInfo { get; private set; }
         private readonly long increment = 300000;
         private string userAgent;
@@ -21,14 +18,20 @@ namespace LiveRoku.Core {
             this.userAgent = userAgent;
         }
 
+        protected virtual void onBytesReceived(long bytesReceived) { }
+        protected virtual void onVideoInfoChecked(VideoInfo info) { }
+        protected virtual void onIsRunningUpdated(bool isRunning) { }
+        protected override void onDownloadEnded() { }
+
+
         protected override void onStarting () {
             sizeToCheck = increment;
             errorTimes = 0;
-            IsRunningUpdated?.Invoke (true);
+            onIsRunningUpdated (true);
         }
 
         protected override void onStopped () {
-            IsRunningUpdated?.Invoke (false);
+            onIsRunningUpdated (false);
         }
 
         protected override void initClient (WebClient client) {
@@ -53,12 +56,12 @@ namespace LiveRoku.Core {
                             ++errorTimes;
                         }
                         if (info != null) {
-                            VideoInfoChecked?.Invoke (info);
+                            onVideoInfoChecked (info);
                         }
                     }).ContinueWith (task => { task.Exception?.printStackTrace (); });
                 }
             }
-            BytesReceived?.Invoke (e.BytesReceived);
+            onBytesReceived (e.BytesReceived);
         }
 
         private VideoInfo updateFlvInfo (string path, long bytesReceived) {

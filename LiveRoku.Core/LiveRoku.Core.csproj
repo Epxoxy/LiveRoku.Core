@@ -84,7 +84,7 @@
     <Compile Include="Implements\danmaku\handlers\KeepAliveHandler.cs" />
     <Compile Include="Implements\danmaku\handlers\UnpackHandler.cs" />
     <Compile Include="Implements\danmaku\packet\Packet.cs" />
-    <Compile Include="Implements\LiveDownloadWorker.cs" />
+    <Compile Include="Implements\video\LiveDownloadWorker.cs" />
     <Compile Include="model\SimpleMission.cs" />
     <Compile Include="Implements\LiveEventEmitterBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

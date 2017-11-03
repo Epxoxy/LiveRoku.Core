@@ -41,7 +41,7 @@
                 return true;
             } else {
                 resultId = accessApi.getRealRoomId(ShortRoomId);
-                Logger?.log(Level.Info, $"-->sw--> fetched real roomId {resultId}");
+                Debug.WriteLine($"-->sw--> fetched real roomId {resultId}", "watch");
                 return (!string.IsNullOrEmpty(resultId) && int.TryParse(resultId, out int idTemp));
             }
         }
@@ -49,11 +49,11 @@
         public bool fetchUrlAndRealId () {
             var sw = new Stopwatch ();
             sw.Start ();
-            Logger?.log (Level.Info, "-->sw--> start 00m:00s 000");
+            Debug.WriteLine("-->sw--> start 00m:00s 000", "watch");
             //Try to get flv url
             if (fetchRealRoomId(out string idTextTemp)) {
                 var flvUrl = accessApi.getRealUrl(idTextTemp);
-                Logger?.log(Level.Info, $"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}");
+                Debug.WriteLine($"-->sw--> fetched real url at {sw.Elapsed.ToString("mm'm:'ss's 'fff")}", "watch");
                 sw.Stop();
                 if (!string.IsNullOrEmpty(flvUrl)) {
                     this.RealRoomId = idTextTemp;
@@ -73,7 +73,7 @@
                 } else return this.RoomInfo;
             }
             this.RoomInfo = accessApi.getRoomInfo(RealRoomId);
-            Logger?.log(Level.Info, $"Fetched room info.");
+            Logger?.log(Level.Info, $"Fetched RoomInfo, Title {this.RoomInfo?.Title}.");
             return this.RoomInfo;
         }
     }

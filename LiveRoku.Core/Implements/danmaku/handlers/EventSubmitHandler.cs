@@ -19,6 +19,10 @@
         public override void onActive (ITransformContext ctx) {
             Active?.Invoke ();
             /*System.Threading.Tasks.Task.Run(async () => {
+                await System.Threading.Tasks.Task.Delay(25000);
+                OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveStart });
+                await System.Threading.Tasks.Task.Delay(2000);
+                OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveStart });
                 await System.Threading.Tasks.Task.Delay(20000);
                 OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveEnd });
             });*/

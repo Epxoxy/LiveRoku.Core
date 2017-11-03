@@ -4,9 +4,10 @@ namespace LiveRoku.Core {
     using System.IO;
     using System.Net;
     using System.Threading.Tasks;
+
     internal abstract class FileDownloaderBase {
         public bool IsRunning { get; private set; }
-        public Action OnDownloadCompleted;
+        public bool IsBusy => client?.IsBusy == true;
 
         private WebClient client;
         protected string savePath;
@@ -21,43 +22,41 @@ namespace LiveRoku.Core {
             return true;
         }
 
-        public Task startAsync (string uri) {
-            if (IsRunning) return Task.FromResult (false);
+        public Task<bool> startAsync (string uri) {
+            if (IsRunning || !checkFolder()) return Task.FromResult(false);
             IsRunning = true;
             onStarting ();
             client = new WebClient ();
             initClient (client);
             client.DownloadFileCompleted += stopDownload;
             client.DownloadProgressChanged += showProgress;
-            //TODO Ensure Path Created. 
-            if (!checkFolder ()) {
-                stop ();
-                return Task.FromResult (false);
-            }
             return client.DownloadFileTaskAsync (new Uri (uri), savePath).ContinueWith (task => {
-                stop ();
-                OnDownloadCompleted?.Invoke ();
+                stopAsync ();
+                onDownloadEnded();
                 task.Exception?.printStackTrace ();
+                System.Diagnostics.Debug.WriteLine("Download task completed.", "dloader");
+                return true;
             });
         }
 
-        public void stop () {
+        public void stopAsync () {
             if (IsRunning) {
                 IsRunning = false;
                 if (client != null) {
-                    var temp = client;
-                    client = null;
-                    temp.DownloadFileCompleted -= stopDownload;
-                    temp.DownloadProgressChanged -= showProgress;
-                    temp.CancelAsync ();
-                    temp.Dispose ();
+                    using (var temp = client) {
+                        client = null;
+                        temp.DownloadFileCompleted -= stopDownload;
+                        temp.DownloadProgressChanged -= showProgress;
+                        temp.CancelAsync();
+                        temp.Dispose();
+                    }
                 }
                 onStopped ();
             }
         }
 
         private void stopDownload (object sender, AsyncCompletedEventArgs e) {
-            stop ();
+            stopAsync ();
         }
 
         private void showProgress (object sender, DownloadProgressChangedEventArgs e) {
@@ -74,13 +73,14 @@ namespace LiveRoku.Core {
                 return true;
             } catch (Exception e) {
                 e.printStackTrace();
-                stop ();
+                stopAsync ();
                 return false;
             }
         }
 
-        protected abstract void onStarting ();
+        protected abstract void onStarting();
         protected abstract void onStopped ();
+        protected virtual void onDownloadEnded() { }
         protected abstract void onProgressUpdate (DownloadProgressChangedEventArgs e);
         protected abstract void initClient (WebClient client);
     }

@@ -1,6 +1,6 @@
 ﻿namespace LiveRoku.Core.Common {
     using System;
-    internal class CompleteFirstInvoker {
+    internal class LastContinuableInvoker {
         //public
         public int RequestTimes { get; private set; }
         public bool IsInvoking { get; private set; }
@@ -9,14 +9,14 @@
         private Action action;
         private object locker = new object();
 
-        public CompleteFirstInvoker(Action action) {
+        public LastContinuableInvoker(Action action) {
             this.action = action;
         }
         public void invoke() {
             invoke(false);
         }
 
-        public void invoke(bool internalCall) {
+        private void invoke(bool internalCall) {
             lock (locker) {
                 if(!internalCall)
                     RequestTimes++;
@@ -41,7 +41,7 @@
             invoke(true);
         }
 
-        public void revoke() {
+        public void reset() {
             lock (locker) {
                 RequestTimes = 0;
             }

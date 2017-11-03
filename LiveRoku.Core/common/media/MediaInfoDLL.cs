@@ -63,7 +63,7 @@ namespace LiveRoku.Core.Common.Media {
     }
 
     public class MediaInfo {
-        public const string DllPath = "/basic/media/MediaInfo.dll";
+        public const string DllPath = "/common/media/MediaInfo.dll";
         //Import of DLL functions. DO NOT USE until you know what you do (MediaInfo DLL do NOT use CoTaskMemAlloc to allocate memory)
         [DllImport (DllPath)]
         private static extern IntPtr MediaInfo_New ();
@@ -207,7 +207,7 @@ namespace LiveRoku.Core.Common.Media {
     }
 
     public class MediaInfoList {
-        public const string DllPath = "/basic/media/MediaInfo.dll";
+        public const string DllPath = "/common/media/MediaInfo.dll";
         //Import of DLL functions. DO NOT USE until you know what you do (MediaInfo DLL do NOT use CoTaskMemAlloc to allocate memory)
         [DllImport (DllPath)]
         private static extern IntPtr MediaInfoList_New ();
