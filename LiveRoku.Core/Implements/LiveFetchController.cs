@@ -103,8 +103,6 @@ namespace LiveRoku.Core {
             IsRunning = true;
             downloader.reset ();
             dmCarrier.resetState ();
-            //Preparing signal
-            this.onPreparing ();
             //Basic parameters check
             //Get running parameters
             var roomIdText = basicArgs.ShortRoomId;
@@ -120,6 +118,9 @@ namespace LiveRoku.Core {
                 settings.VideoRequire = basicArgs.VideoRequire;
                 settings.DanmakuRequire = basicArgs.DanmakuRequire;
                 settings.IsShortIdTheRealId = basicArgs.IsShortIdTheRealId;
+                //Preparing signal
+                this.Extra.put("video-require", settings.VideoRequire);
+                this.onPreparing();
                 fetchLiveImpl();
             }
         }
