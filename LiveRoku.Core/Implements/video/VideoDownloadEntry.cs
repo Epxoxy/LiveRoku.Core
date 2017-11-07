@@ -80,7 +80,7 @@
                     Debug.WriteLine($"1/{reinvoke.RequestTimes} Register ok. Now invoking", "re-work");
                     activeWorker(reinvoke, pref, dataApi).ContinueWith(task => {
                         Debug.WriteLine($"Restart downloader Completed.IsStreaming -{worker.IsStreaming}", "re-work");
-                        if (reinvoke.continueRegister()) {
+                        if (reinvoke.unregisterAndReRegister()) {
                             Debug.WriteLine($"Continue remain {reinvoke.RequestTimes}", "re-work");
                             invokeLoop.Invoke();
                         }
@@ -124,6 +124,7 @@
         }
 
         private bool isRestartDownloadAllow() {
+            //For test --> return false;
             return isWorkModeAndLiveOn() && !worker.IsStreaming;
         }
 

@@ -1,4 +1,6 @@
 ﻿namespace LiveRoku.Core.Common {
+    //Await task until unregister manually
+    //Always keep the newest request and igore all the early request
     class LatestAwaitable {
         internal int RequestTimes => requestTimes;//Test
 
@@ -12,21 +14,26 @@
                 if (someoneRegister)
                     return false;
                 someoneRegister = true;
+                requestTimes = 0;
                 return true;
             }
         }
 
-        public bool continueRegister() {
+        public bool unregisterAndReRegister() {
             lock (locker) {
-                bool canContinue = false;
+                bool registrable = false;
+                //Only work if current is registered
                 if (someoneRegister) {
-                    canContinue = requestTimes > 0;
-                    requestTimes = canContinue ? 1 : 0;
-                    if (!canContinue) {
+                    //If latest request not exist
+                    //We can't continue register
+                    registrable = requestTimes > 0;
+                    if (!registrable) {
                         someoneRegister = false;
+                    } else {
+                        requestTimes = 0;
                     }
                 }
-                return canContinue;
+                return registrable;
             }
         }
 
