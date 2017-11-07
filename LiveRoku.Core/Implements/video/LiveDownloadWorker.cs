@@ -1,14 +1,15 @@
 ﻿namespace LiveRoku.Core {
+    using LiveRoku.Base;
+    using LiveRoku.Base.Logger;
+    using LiveRoku.Core.Models;
     using System;
     using System.IO;
     using System.Text;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
     using System.Collections.Generic;
-    using LiveRoku.Base;
-    using LiveRoku.Base.Logger;
-    using LiveRoku.Core.Models;
+    using LiveRoku.Core.Common.Media;
+
     internal class LiveDownloadWorker : FlvDownloader {
         public bool IsStarted { get; private set; }
         public bool IsStreaming { get; private set; }
@@ -23,8 +24,7 @@
         private VideoInfo videoInfo;
         private SimpleMission record;
         private bool dmToLocalRequired = true;
-        private CancellationTokenSource dmWritingCTS;
-        private Action streamingCheck = delegate { };
+        private Action<long> streamingCheck = delegate { };
 
         public LiveDownloadWorker (ILogger logger, string userAgent) : base(userAgent, null) {
             this.logger = logger;
@@ -50,7 +50,7 @@
             record.VideoObjectName = fileFullName;
             record.XMLObjectName = Path.ChangeExtension (fileFullName, "xml");
             //Create FlvDloader and subscribe event handlers
-            streamingCheck = Streaming;
+            streamingCheck = onStreaming;
             this.updateSavePath (fileFullName);
             dmWriter = new DanmakuWriter(Encoding.UTF8);
             return this.startAsync (flvAddress);
@@ -82,16 +82,18 @@
             base.onDownloadEnded();
             IsStarted = false;
             IsStreaming = false;
-            record.EndTime = DateTime.Now;
-            var oldRecord = record;
-            record = null;
-            MissionCompleted?.Invoke(oldRecord);
+            if(record!= null) {
+                record.EndTime = DateTime.Now;
+                var oldRecord = record;
+                record = null;
+                MissionCompleted?.Invoke(oldRecord);
+            }
         }
 
         protected override void onIsRunningUpdated(bool downloadRunning) {
             base.onIsRunningUpdated(downloadRunning);
             if (!downloadRunning) IsStreaming = false;
-            logger.log (Level.Info, $"Flv download is {(downloadRunning ? "starting" : "stopped")}.");
+            logger.log (Level.Info, $"Video download is {(downloadRunning ? "starting" : "stopped")}.");
         }
 
         //Raise event when video info checked
@@ -112,30 +114,45 @@
             IsStreaming = true;
             streamingCheck = delegate { };
             record.BeginTime = DateTime.Now;
-            logger.log (Level.Info, "Streaming check.....");
-            if (dmWritingCTS?.Token.CanBeCanceled == true) {
-                dmWritingCTS.Cancel ();
+            System.Diagnostics.Debug.WriteLine("Streaming check.....", "worker");
+            dmWriter.stop(force: true);
+            if (dmToLocalRequired) {
+                activeWriteDanmaku();
             }
-            dmWritingCTS = new CancellationTokenSource ();
-            Task.Run (async () => {
-                dmWriter.stop (force : true);
-                if (!dmToLocalRequired) return;
-                await activeWriteDanmaku ();
-            }, dmWritingCTS.Token);
             Streaming?.Invoke();
         }
 
         protected override void onBytesReceived(long totalBytes) {
             base.onBytesReceived(totalBytes);
             record.RecordSize = totalBytes;
-            streamingCheck.Invoke();
+            streamingCheck.Invoke(totalBytes);
             //OnDownloadSizeUpdate
             DownloadSizeUpdated?.Invoke(totalBytes);
         }
-        
+
+        protected override VideoInfo getVideoInfo(string path, long bytesReceived) {
+            var mediaLib = new MediaInfo();
+            //Get basic parameters
+            mediaLib.Open(path);
+            var durationText = mediaLib.Get(StreamKind.General, 0, "Duration");
+            var videoBrText = mediaLib.Get(StreamKind.Video, 0, "BitRate");
+            var audioBrText = mediaLib.Get(StreamKind.Audio, 0, "BitRate");
+            mediaLib.Close();
+            //Parse basic parameters
+            int videoBr = 0, audioBr = 0, duration = 0;
+            int.TryParse(videoBrText, out videoBr);
+            int.TryParse(audioBrText, out audioBr);
+            int.TryParse(durationText, out duration);
+            return new VideoInfo {
+                BitRate = videoBr + audioBr,
+                Duration = duration,
+                Bytes = bytesReceived
+            };
+        }
+
         private Task activeWriteDanmaku () {
             var startTimestamp = Convert.ToInt64 (DateTime.UtcNow.totalMsToGreenTime ());
-            logger.log (Level.Info, "Start danmaku storage.....");
+            System.Diagnostics.Debug.WriteLine("Active danmaku writer.....", "worker");
             return dmWriter.startAsync (record.XMLObjectName, startTimestamp);
         }
     }

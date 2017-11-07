@@ -40,12 +40,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="fetcher\handler\DanmakuResolver.cs" />
-    <Compile Include="fetcher\handler\LiveProgressBinderBase.cs" />
-    <Compile Include="fetcher\handler\StatusAndLiveProgressBinderBase.cs" />
-    <Compile Include="fetcher\handler\StatusBinderBase.cs" />
-    <Compile Include="fetcher\handler\ILiveProgressBinder.cs" />
-    <Compile Include="fetcher\IMission.cs" />
+    <Compile Include="fetcher\handler\baseImpl\DanmakuResolverBase.cs" />
+    <Compile Include="fetcher\handler\baseImpl\RokuProgressResolverBase.cs" />
+    <Compile Include="fetcher\handler\IDanmakuResolver.cs" />
+    <Compile Include="fetcher\handler\ILiveResolver.cs" />
+    <Compile Include="fetcher\handler\baseImpl\LiveResolverBase.cs" />
+    <Compile Include="fetcher\handler\baseImpl\DownloadProgressBinderBase.cs" />
+    <Compile Include="fetcher\handler\baseImpl\StatusBinderBase.cs" />
+    <Compile Include="fetcher\handler\IDownloadProgressBinder.cs" />
+    <Compile Include="model\IMission.cs" />
     <Compile Include="logger\ILogHandler.cs" />
     <Compile Include="logger\ILogger.cs" />
     <Compile Include="model\DanmakuOptions.cs" />
@@ -58,7 +61,7 @@
     <Compile Include="fetcher\handler\IStatusBinder.cs" />
     <Compile Include="fetcher\ILiveFetcher.cs" />
     <Compile Include="logger\Level.cs" />
-    <Compile Include="fetcher\IFetchArgsHost.cs" />
+    <Compile Include="fetcher\IPreferences.cs" />
     <Compile Include="model\DanmakuModel.cs" />
     <Compile Include="model\GiftRank.cs" />
     <Compile Include="model\IRoomInfo.cs" />

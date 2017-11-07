@@ -19,7 +19,7 @@ namespace LiveRoku.Test {
         public string UserAgent { get; set; }
     }
 
-    class Program : StatusAndLiveProgressBinderBase, ILogHandler, IFetchArgsHost {
+    class Program : LiveResolverBase, ILogHandler, IPreferences {
 
         public string ShortRoomId => Args.RoomId;
         public string RealRoomId => null;
@@ -37,6 +37,7 @@ namespace LiveRoku.Test {
         private string sizeText;
         private int durationUpdateTimes = 0;
         public ArgsModel Args { get; private set; }
+        public ISettingsBase Extra { get; } = new EasySettings();
 
         public Program (ArgsModel args) {
             this.Args = args;
@@ -46,7 +47,7 @@ namespace LiveRoku.Test {
             this.fetcher = fetcher;
         }
 
-        public override void onStatusUpdate (bool isOn) {
+        public override void onLiveStatusUpdateByDanmaku (bool isOn) {
             Debug.WriteLine ($"Status --> {(isOn ? "on" : "off")}", "program");
         }
 
@@ -69,7 +70,7 @@ namespace LiveRoku.Test {
             Debug.WriteLine ("BitRate ..... " + bitRateText, "program");
         }
 
-        public override void onHotUpdate (long onlineCount) {
+        public override void onHotUpdateByDanmaku (long onlineCount) {
             fetcher.Logger.log (Level.Info, "Hot updated ..... " + onlineCount);
         }
 
@@ -93,6 +94,11 @@ namespace LiveRoku.Test {
         }
         public override void onStreaming() {
             Debug.WriteLine("base.onStreaming()", "program");
+        }
+        public override void onDanmakuReceive(DanmakuModel danmaku) {
+            if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment)
+                return;
+            Debug.WriteLine($"\"{danmaku.UserName}\" : {danmaku.CommentText}");
         }
 
         static void runSafely (Action doWhat) {
@@ -158,10 +164,7 @@ namespace LiveRoku.Test {
             fetcher.LiveProgressBinders.add (argsHost);
             fetcher.StatusBinders.add(argsHost);
             //fetcher.Extra.put ("cancel-flv", true);
-            fetcher.DanmakuHandlers.add (danmaku => {
-                if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment) return;
-                Debug.WriteLine ($"\"{danmaku.UserName}\" : {danmaku.CommentText}");
-            });
+            fetcher.DanmakuHandlers.add (argsHost);
             fetcher.start ();
             //Waitting for exit
             ConsoleKeyInfo press;

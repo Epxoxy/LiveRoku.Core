@@ -2,10 +2,8 @@ namespace LiveRoku.Core {
     using System;
     using System.Net;
     using System.Threading.Tasks;
-    using LiveRoku.Core.Common.Media;
     using LiveRoku.Core.Models;
-    public delegate void BytesReceived (long totalBytes);
-    internal class FlvDownloader : FileDownloaderBase {
+    internal abstract class FlvDownloader : FileDownloaderBase {
         
         public VideoInfo LastestVideoCheckInfo { get; private set; }
         private readonly long increment = 300000;
@@ -49,7 +47,7 @@ namespace LiveRoku.Core {
                     Task.Run (() => {
                         VideoInfo info = null;
                         try {
-                            info = updateFlvInfo (base.savePath, e.BytesReceived);
+                            info = getVideoInfo (base.savePath, e.BytesReceived);
                             LastestVideoCheckInfo = info;
                         } catch (Exception ex) {
                             ex.printStackTrace ();
@@ -64,25 +62,7 @@ namespace LiveRoku.Core {
             onBytesReceived (e.BytesReceived);
         }
 
-        private VideoInfo updateFlvInfo (string path, long bytesReceived) {
-            var mediaLib = new MediaInfo ();
-            //Get basic parameters
-            mediaLib.Open (path);
-            var durationText = mediaLib.Get (StreamKind.General, 0, "Duration");
-            var videoBrText = mediaLib.Get (StreamKind.Video, 0, "BitRate");
-            var audioBrText = mediaLib.Get (StreamKind.Audio, 0, "BitRate");
-            mediaLib.Close ();
-            //Parse basic parameters
-            int videoBr = 0, audioBr = 0, duration = 0;
-            int.TryParse (videoBrText, out videoBr);
-            int.TryParse (audioBrText, out audioBr);
-            int.TryParse (durationText, out duration);
-            return new VideoInfo {
-                BitRate = videoBr + audioBr,
-                Duration = duration,
-                Bytes = bytesReceived
-            };
-        }
+        protected abstract VideoInfo getVideoInfo(string path, long bytesReceived);
 
         //For preventing some errors case by media.dll
         private int errorTimes;

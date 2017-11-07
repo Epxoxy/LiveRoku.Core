@@ -38,6 +38,8 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -46,22 +48,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="common\helpers\CompleteFirstInvoker.cs" />
-    <Compile Include="Implements\StandardWebClient.cs">
-      <SubType>Component</SubType>
-    </Compile>
+    <Compile Include="common\helpers\LatestAwaitable.cs" />
+    <Compile Include="Implements\StandardHttpClient.cs" />
+    <Compile Include="Implements\video\VideoDownloadEntry.cs" />
+    <Compile Include="model\IWebApi.cs" />
     <Compile Include="model\IWebClient.cs" />
     <Compile Include="model\LowList.cs" />
     <Compile Include="model\RoomInfo.cs" />
-    <Compile Include="Implements\api\FetchArgsBean.cs" />
+    <Compile Include="Implements\api\RoomDataLiteApi.cs" />
     <Compile Include="common\helpers\CancellationManager.cs" />
     <Compile Include="common\network\Utils.cs" />
-    <Compile Include="Implements\danmaku\DanmakuEvents.cs" />
     <Compile Include="Implements\danmaku\handlers\EventSubmitHandler.cs" />
     <Compile Include="Implements\danmaku\packet\DanmakuFactory.cs" />
     <Compile Include="common\unwanted\DynamicBuffer.cs" />
     <Compile Include="common\unwanted\FileSizeFormatProvider.cs" />
-    <Compile Include="model\FetchServerResult.cs" />
+    <Compile Include="model\ServerData.cs" />
     <Compile Include="model\VideoInfo.cs" />
     <Compile Include="Implements\danmaku\DanmakuWriter.cs" />
     <Compile Include="Implements\danmaku\packet\PacketDecoder.cs" />
@@ -86,7 +87,7 @@
     <Compile Include="Implements\danmaku\packet\Packet.cs" />
     <Compile Include="Implements\video\LiveDownloadWorker.cs" />
     <Compile Include="model\SimpleMission.cs" />
-    <Compile Include="Implements\LiveEventEmitterBase.cs" />
+    <Compile Include="Implements\LiveEventEmitter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

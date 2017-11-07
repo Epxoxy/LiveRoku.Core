@@ -1,97 +1,106 @@
 namespace LiveRoku.Core {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.Diagnostics.CodeAnalysis;
-    using System.IO;
-    using System.Threading;
-    using System.Threading.Tasks;
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
     using LiveRoku.Core.Common;
     using LiveRoku.Core.Models;
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Diagnostics.CodeAnalysis;
+    public class PreferencesLite {
+        public string Folder { get; set; }
+        public string FileNameFormat { get; set; }
+        public bool AutoStart { get; set; }
+        public bool DanmakuRequire { get; set; }
+        public bool VideoRequire { get; set; }
+    }
     [SuppressMessage ("Microsoft.Performance", "CS4014")]
-    public class LiveFetchController : LiveEventEmitterBase, ILiveFetcher, IDisposable {
+    public partial class LiveFetchController : IDisposable {
         public ISettingsBase Extra => extra;
         public bool IsRunning { get; private set; }//Value of if it's start download
-        public bool IsStreaming => downloader.IsStreaming;//Result of it's downloading or not
         public bool? IsLiveOn => dmCarrier.IsLiveOn;//The live status
+        public bool IsStreaming => actor.IsStreaming;//Result of it's downloading or not
 
         private readonly ISettings extra = new EasySettings ();
-        private readonly CancellationManager cancelMgr = new CancellationManager ();
+        private readonly CancellationManager mgr = new CancellationManager ();
         private readonly INetworkWatcher network = new NetworkWatcherProxy ();
-        private readonly BiliApi accessApi; //API access
-        private readonly IFetchArgsHost basicArgs; //Provide base parameters
-        private readonly FetchArgsBean settings;
+        private readonly PreferencesLite prefCopy = new PreferencesLite();
+        private readonly IPreferences pref; //Provide base parameters
+        private readonly IWebApi rootAccessApi; //API access
+        private readonly RoomDataLiteApi dataApi;
         private readonly DanmakuCarrier dmCarrier;
-        private readonly LiveDownloadWorker downloader;
+        private readonly IDownloadActor emptyActor;
+        private readonly IDownloadActor dloadActor;
         private readonly int requestTimeout;
-        private readonly object locker = new object();
-        private readonly object downloadLocker = new object();
-        private LastContinuableInvoker continuable = null;
+        private IDownloadActor actor;
 
-        public LiveFetchController (IFetchArgsHost basicArgs, int requestTimeout) {
+        public LiveFetchController (IPreferences basicArgs, int requestTimeout) {
             var userAgent = basicArgs?.UserAgent;
             //Initialize access api
-            this.accessApi = new BiliApi (makeNewWebClient, Logger, userAgent);
-            this.settings = new FetchArgsBean(accessApi, Logger);
+            this.rootAccessApi = new BiliApi (new StandardHttpClient {
+                DefaultEncoding = System.Text.Encoding.UTF8,
+                Timeout = TimeSpan.FromMilliseconds(requestTimeout)
+            }, Logger, userAgent);
+            this.dataApi = new RoomDataLiteApi(rootAccessApi, Logger);
             this.requestTimeout = requestTimeout;
-            this.basicArgs = basicArgs;
+            this.pref = basicArgs;
             //.............
             //Make chat/download worker
             //And subscribe base events for boardcasting
             //.............
-            dmCarrier = new DanmakuCarrier(this, accessApi) {
-                HotUpdated = base.onHotUpdate,
-                LiveStatusUpdated = base.onStatusUpdate,
-                LiveCommandRecv = confirmDownloadWhen,
-                DanmakuRecv = dm => {
-                    this.downloader.danmakuToLocal(dm);
-                    base.danmakuRecv(dm);
-                },
+            this.dmCarrier = new DanmakuCarrier(rootAccessApi, emitter, this) {
+                LiveCommandRecv = type => actor.onLiveCommand(type, prefCopy, dataApi),
+                PretreatDanmaku = dm => actor.onDanmaku(dm)
             };
-            downloader = new LiveDownloadWorker(this, userAgent) {
-                BitRateUpdated = bitRate => onBitRateUpdate(bitRate, $"{bitRate / 1000} Kbps"),
-                DurationUpdated = duration => onDurationUpdate(duration, SharedHelper.getFriendlyTime(duration)),
-                DownloadSizeUpdated = totalBytes => onDownloadSizeUpdate(totalBytes, totalBytes.ToFileSize()),
+            this.emptyActor = new EmptyDownloadActor();
+            this.dloadActor = new VideoDownloadActor(new LiveDownloadWorker(this, userAgent) {
+                BitRateUpdated = bitRate => emitter.boardcastBitRateUpdate(bitRate, $"{bitRate / 1000} Kbps"),
+                DurationUpdated = duration => emitter.boardcastDurationUpdate(duration, SharedHelper.getFriendlyTime(duration)),
+                DownloadSizeUpdated = totalBytes => emitter.boardcastDownloadSizeUpdate(totalBytes, totalBytes.ToFileSize()),
                 MissionCompleted = mission => {
-                    base.onMissionComplete(mission);
-                    //Back to waiting status
-                    if (IsRunning) base.onWaiting();
+                    emitter.boardcastMissionComplete(mission);
+                    if (IsRunning/* to back to waiting status*/) {
+                        emitter.boardcastWaiting();
+                    }
                 },
-                Streaming = () => {
-                    this.confirmChatCenter();
-                    base.onStreaming();
+                Streaming = () => /* ensure carrier working*/ {
+                    mgr.runOnlyOne("ensure-carrier", () => {
+                        //IsChannelActive will check in method implement
+                        dmCarrier.connectAsync(dataApi.RealRoomId);
+                    });
+                    emitter.boardcastStreaming();
                 }
-            };
+            }, isWorkModeAndLiveOn, requestTimeout, mgr, Logger);
+            this.actor = this.emptyActor;
         }
-        public LiveFetchController (IFetchArgsHost basicArgs):
+
+        public LiveFetchController (IPreferences basicArgs):
             this (basicArgs, 20000) { }
 
         public void Dispose () {
             stop ();
             dmCarrier.purgeEvents ();
-            emptyHandlers ();
+            emitter.emptyHandlers ();
         }
 
         public IRoomInfo getRoomInfo (bool refresh) {
             if (!IsRunning || refresh) {
-                string originId = basicArgs.ShortRoomId;
-                if (int.TryParse (originId, out int roomId)) {
-                    if (!originId.Equals(settings.ShortRoomId)) {
-                        settings.resetOriginId(originId);
+                string shortId = pref.ShortRoomId;
+                if (int.TryParse (shortId, out int roomId)) {
+                    if (!shortId.Equals(dataApi.ShortRoomId)) {
+                        dataApi.resetShortId(shortId);
                     }
-                    var info = settings.fetchRoomInfo();
-                    downloader.addRoomInfo(info);
+                    var info = dataApi.fetchRoomInfo();
+                    actor.onRoomInfo(info);
                 }
             }
-            return settings.RoomInfo;
+            return dataApi.RoomInfo;
         }
 
         //.............
         //Start or Stop
         //.............
-        public void stop (bool force = false) => cancelDownload (force, false);
+        public void stop (bool force = false) => stopImpl (force, false);
 
         public void start () {
             if (IsRunning) return;
@@ -99,47 +108,52 @@ namespace LiveRoku.Core {
             network.assumeAvailability (true);
             network.attach (available => {
                 Logger.log (Level.Info, $"Network Availability ->  {available}");
-                if (!available) cancelDownload (false, true);
+                if (!available) stopImpl (false, true);
                 else if (!IsRunning) start ();
             });
             IsRunning = true;
-            downloader.reset ();
+            bool isVideoMode = pref.VideoRequire;
+            //Register linker
+            actor = isVideoMode ? dloadActor : emptyActor;
+            //reset state
+            actor.onReset();
             dmCarrier.resetState ();
             //Basic parameters check
             //Get running parameters
-            var roomIdText = basicArgs.ShortRoomId;
+            var roomIdText = pref.ShortRoomId;
             if (!int.TryParse (roomIdText, out int roomId) || roomId <= 0) {
                 Logger.log (Level.Error, "Wrong id.");
                 stop ();
             } else {
                 //Copy parameters
-                settings.resetOriginId(roomIdText);
-                settings.Folder = basicArgs.Folder;
-                settings.FileNameFormat = basicArgs.FileFormat;
-                settings.AutoStart = basicArgs.AutoStart;
-                settings.VideoRequire = basicArgs.VideoRequire;
-                settings.DanmakuRequire = basicArgs.DanmakuRequire;
-                settings.IsShortIdTheRealId = basicArgs.IsShortIdTheRealId;
+                prefCopy.Folder = pref.Folder;
+                prefCopy.FileNameFormat = pref.FileFormat;
+                prefCopy.AutoStart = pref.AutoStart;
+                prefCopy.VideoRequire = isVideoMode;
+                prefCopy.DanmakuRequire = pref.DanmakuRequire;
+                //!
+                dataApi.resetShortId(roomIdText);
+                dataApi.IsShortIdTheRealId = pref.IsShortIdTheRealId;
                 //Preparing signal
-                this.Extra.put("video-require", settings.VideoRequire);
-                this.onPreparing();
+                this.Extra.put("video-require", prefCopy.VideoRequire);
+                emitter.boardcastPreparing();
                 prepareDownload();
             }
         }
 
-        private void cancelDownload (bool force, bool callByInternal) {
+        private void stopImpl (bool force, bool callByInternal) {
             Debug.WriteLine ("stopImpl invoke");
-            if (!callByInternal) { //Network watcher needless
+            if (!callByInternal /* so network watcher needless*/) {
                 network.detach (); //detach now
             }
-            cancelMgr.cancelAll ();
-            cancelMgr.clear ();
+            mgr.cancelAll ();
+            mgr.clear ();
             if (IsRunning) {
                 IsRunning = false;
                 dmCarrier.disconnect ();
-                downloader.stopAsync (force);
-                Logger.log (Level.Info, "Downloader stopped.");
-                this.onStopped ();
+                actor.stopAsync(force);
+                Logger.log(Level.Info, "Fetch stopped.");
+                emitter.boardcastStopped ();
             }
         }
 
@@ -148,152 +162,34 @@ namespace LiveRoku.Core {
             //Cancel when no result back over five second
             //Prepare real roomId and flv url
             bool isUpdated = false;
-            runOnlyOne (() => {
-                isUpdated = settings.fetchUrlAndRealId ();
-            }, "fetch-url-realId", requestTimeout).ContinueWith (task => {
-                runOnlyOne(() => {
-                    //Check if get it successful
-                    if (isUpdated) {
-                        runOnlyOne(() => {
-                            var info = settings.fetchRoomInfo();
-                            downloader.addRoomInfo(info);
-                        }, "fetch-room-info");
-                        //All ready, start now
-                        Logger.log(Level.Info, $"All ready, fetch: {settings.FlvAddress}");
+            mgr.runOnlyOne ("fetch-url-realId", () => {
+                if (!prefCopy.VideoRequire) {
+                    Logger.log(Level.Info, $"No video mode");
+                    isUpdated = dataApi.fetchRealId();
+                } else {
+                    isUpdated = dataApi.fetchRealIdAndUrl("prepare");
+                }
+            }, requestTimeout).ContinueWith (task => {
+                mgr.runOnlyOne("fetch-start-impl", () => {
+                    if (isUpdated/*means get args successful*/) {
+                        mgr.runOnlyOne("fetch-room-info", () => {
+                            //var info = argsBean.fetchRoomInfo();
+                            actor.onRoomInfo(dataApi.fetchRoomInfo());
+                        });
                         //All parameters ready
-                        base.onWaiting();
-                        dmCarrier.connectAsync(settings.RealRoomId);
-                        downloadAsyncBy(downloader, settings);
+                        emitter.boardcastWaiting();
+                        dmCarrier.connectAsync(dataApi.RealRoomId);
+                        actor.onCallDownload(prefCopy, dataApi/*will test video require*/);
                     } else {
-                        Logger.log(Level.Error, $"Get room detail fail, RealRoomId : {settings.RealRoomId}");
+                        Logger.log(Level.Error, $"Get room detail fail, RealRoomId : {dataApi.RealRoomId}");
                         stop();
                     }
-                }, "fetch-start-impl");
-            });
-        }
-
-        private Task<bool> downloadAsyncBy(LiveDownloadWorker downloader, FetchArgsBean args) {
-            var fileName = getFileFullName(args.FileNameFormat, args.Folder, args.RealRoomId, DateTime.Now);
-            if (args.VideoRequire) {
-                return downloader.downloadAsync(args.FlvAddress, fileName, args.DanmakuRequire);
-            } else {
-                Logger.log(Level.Info, $"No video mode");
-                return Task.FromResult(false);
-            }
-        }
-
-        //.......
-        //Handlers
-        //.......
-        private IWebClient makeNewWebClient() {
-            return new StandardWebClient {
-                Encoding = System.Text.Encoding.UTF8,
-                RequestTimeout = requestTimeout
-            };
-        }
-
-        private void confirmChatCenter () {
-            runOnlyOne (() => {
-                if (dmCarrier.IsChannelActive) return;
-                dmCarrier.connectAsync (settings.RealRoomId);
-            }, nameof (confirmChatCenter));
-        }
-
-        private void confirmDownloadWhen (MsgTypeEnum type) {
-            if (!settings.VideoRequire) return;
-            if (type == MsgTypeEnum.LiveEnd) {
-                continuable?.reset();
-                cancelMgr.cancel (nameof (confirmDownloadWhen));
-                cancelMgr.remove (nameof (confirmDownloadWhen));
-                Debug.WriteLine("Trying to stop downloader because live end.", "tasks");
-                downloader.stopAsync (false);
-            } else if (settings.AutoStart) {
-                //enterTimes = 0;//Just need to know has newest request
-                //Keep one enter, sometimes LiveStart msg will send over one time
-                continuable = continuable ?? new LastContinuableInvoker(() => {
-                    Debug.WriteLine($"{nameof(LastContinuableInvoker)} invoking", "tasks");
-                    runOnlyOne(token => {
-                        if (!isRestartDownloadAllow() || !settings.fetchUrlAndRealId()) {
-                            Debug.WriteLine("Restart not allow or fetch url/id fail.", "tasks");
-                            return;
-                        }
-                        Debug.WriteLine($"Trying to restart downloader.", "task");
-                        if (token.IsCancellationRequested)
-                            return;
-                        Logger.log(Level.Info, $"Flv address updated : {settings.FlvAddress}");
-                        //Reconfirm download required and not start 
-                        if (isRestartDownloadAllow()) {
-                            downloadAsyncBy(downloader, settings).Wait();
-                        }
-                    }, nameof(confirmDownloadWhen), requestTimeout, () => {
-                        //Stop when timeout if download not start
-                        Debug.WriteLine($"Restart downloader cancelled.Streaming -{downloader.IsStreaming}", "tasks");
-                        if (!downloader.IsStreaming) {
-                            downloader.stopAsync(true);
-                        }
-                        continuable.fireActionOk();
-                    }).ContinueWith(task => {
-                        Debug.WriteLine($"Restart downloader Completed.Streaming -{downloader.IsStreaming}", "tasks");
-                        continuable.fireActionOk();
-                    });
                 });
-                Debug.WriteLine($"{nameof(LastContinuableInvoker)} add invoke", "tasks");
-                continuable.invoke();
-            }
-        }
-
-        private bool isRestartDownloadAllow() {
-            return IsRunning && dmCarrier.IsLiveOn == true && !downloader.IsStreaming;
-        }
-
-        //...........
-        //Help method
-        //...........
-        private string getFileFullName (string format, string folder, string realRoomId, DateTime baseTime) {
-            var fileName = string.Empty;
-            try {
-                fileName = format.Replace ("{roomId}", realRoomId.ToString ())
-                    .Replace ("{Y}", baseTime.Year.ToString ("D4"))
-                    .Replace ("{M}", baseTime.Month.ToString ("D2"))
-                    .Replace ("{d}", baseTime.Day.ToString ("D2"))
-                    .Replace ("{H}", baseTime.Hour.ToString ("D2"))
-                    .Replace ("{m}", baseTime.Minute.ToString ("D2"))
-                    .Replace ("{s}", baseTime.Second.ToString ("D2"));
-            } catch (Exception e) {
-                e.printStackTrace();
-                fileName = $"{realRoomId}-{baseTime.ToString("yyyy-MM-dd-HH-mm-ss")}";
-            }
-            return Path.Combine (folder, fileName);
-        }
-
-        private Task runOnlyOne(Action<CancellationToken> action, string tokenKey, int timeout = 0, Action onCancelled = null) {
-            var cts = timeout > 0 ? new CancellationTokenSource(timeout) :
-                new CancellationTokenSource();
-            cts.Token.Register(()=> {
-                Debug.WriteLine($"Cancel {tokenKey}", "tasks");
-                onCancelled?.Invoke();
-            });
-            cancelMgr.cancel(tokenKey);
-            cancelMgr.set(tokenKey, cts);
-            return Task.Run(()=>action?.Invoke(cts.Token), cts.Token).ContinueWith(task => {
-                cancelMgr.remove(tokenKey);
-                task.Exception?.printOn(Logger);
             });
         }
-
-        private Task runOnlyOne (Action action, string tokenKey, int timeout = 0, Action onCancelled = null) {
-            var cts = timeout > 0 ? new CancellationTokenSource (timeout) :
-                new CancellationTokenSource ();
-            cts.Token.Register(() => {
-                Debug.WriteLine($"Cancel {tokenKey}", "tasks");
-                onCancelled?.Invoke();
-            });
-            cancelMgr.cancel (tokenKey);
-            cancelMgr.set (tokenKey, cts);
-            return Task.Run (action, cts.Token).ContinueWith (task => {
-                cancelMgr.remove (tokenKey);
-                task.Exception?.printOn (Logger);
-            });
+        
+        private bool isWorkModeAndLiveOn() {
+            return IsRunning && dmCarrier.IsLiveOn == true;
         }
 
         private bool isValueTrue (IDictionary<string, object> dict, string key) {

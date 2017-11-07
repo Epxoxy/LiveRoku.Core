@@ -90,7 +90,7 @@
             return baseCtx;
         }
 
-        public LoadContext create (IFetchArgsHost argsHost, bool reload = false) {
+        public LoadContext create (IPreferences argsHost, bool reload = false) {
             if (argsHost == null) {
                 throw new ArgumentNullException (nameof (argsHost));
             }

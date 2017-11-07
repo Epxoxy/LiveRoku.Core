@@ -1,14 +1,16 @@
 ﻿namespace LiveRoku.Core.Models {
     using System;
+    using System.Net.Http.Headers;
     using System.Text;
     using System.Threading.Tasks;
     //For PCL
     //TODO Complete it
     public interface IWebClient : IDisposable {
-        Encoding Encoding { get; set; }
-        string DownloadString(string address);
-        void AddHeader(string value);
-        void CancelAsync();
-        Task DownloadFileTaskAsync(Uri address, string fileName);
+        Encoding DefaultEncoding { get; set; }
+        TimeSpan Timeout { get; set; }
+        HttpRequestHeaders DefaultRequestHeaders { get; }
+
+        Task<string> GetStringAsyncUsing(string address);
+        Task<string> GetStringAsyncUsing(string address, Encoding encoding);
     }
 }

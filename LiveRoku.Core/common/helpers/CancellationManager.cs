@@ -1,7 +1,10 @@
 ﻿namespace LiveRoku.Core.Common {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Threading;
+    using System.Threading.Tasks;
+
     internal class CancellationManager {
         private Dictionary<string, CancellationTokenSource> ctsTemp;
         private object lockHelper = new object ();
@@ -55,5 +58,53 @@
                 }
             }
         }
+        
+        //...........
+        //Help method
+        //...........
+        public Task runOnlyOne(string tokenKey, Action<CancellationToken> action, int timeout = 0, Action onCancelled = null) {
+            if (action == null)
+                return Task.FromResult(false);
+            var cts = timeout > 0 ? new CancellationTokenSource(timeout) :
+                new CancellationTokenSource();
+            cts.Token.Register(() => {
+                Debug.WriteLine($"Cancel {tokenKey}", "tasks");
+                onCancelled?.Invoke();
+            });
+            this.cancel(tokenKey);
+            this.set(tokenKey, cts);
+            return Task.Run(() => {
+                try {
+                    action.Invoke(cts.Token);
+                } catch (Exception e) {
+                    e.printStackTrace("cancel-mgr");
+                }
+                this.remove(tokenKey);
+                this.cancel(tokenKey);
+            }, cts.Token);
+        }
+
+        public Task runOnlyOne(string tokenKey, Action action, int timeout = 0, Action onCancelled = null) {
+            if (action == null)
+                return Task.FromResult(false);
+            var cts = timeout > 0 ? new CancellationTokenSource(timeout) :
+                new CancellationTokenSource();
+            cts.Token.Register(() => {
+                Debug.WriteLine($"Cancel {tokenKey}", "tasks");
+                onCancelled?.Invoke();
+            });
+            this.cancel(tokenKey);
+            this.set(tokenKey, cts);
+            return Task.Run(() => {
+                try {
+                    action.Invoke();
+                } catch (Exception e) {
+                    e.printStackTrace("cancel-mgr");
+                }
+                this.remove(tokenKey);
+                this.cancel(tokenKey);
+            }, cts.Token);
+        }
+
     }
 }

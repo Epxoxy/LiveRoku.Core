@@ -18,11 +18,17 @@
 
         public override void onActive (ITransformContext ctx) {
             Active?.Invoke ();
+            //TODO Remove test code
             /*System.Threading.Tasks.Task.Run(async () => {
                 await System.Threading.Tasks.Task.Delay(25000);
-                OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveStart });
-                await System.Threading.Tasks.Task.Delay(2000);
-                OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveStart });
+                int times = 50;
+                var random = new Random();
+                while (times--> 0) {
+                    OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveStart });
+                    await System.Threading.Tasks.Task.Delay(random.Next(20, 300));
+                    OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveStart });
+                    await System.Threading.Tasks.Task.Delay(random.Next(10, 200));
+                }
                 await System.Threading.Tasks.Task.Delay(20000);
                 OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveEnd });
             });*/
@@ -64,13 +70,6 @@
         public override void onException (ITransformContext ctx, Exception e) {
             System.Diagnostics.Debug.WriteLine (e.ToString ());
             OnException?.Invoke (e);
-        }
-
-        private bool tryGet<T> (object obj, out T value) where T : class {
-            value = default (T);
-            if (obj == null) return false;
-            value = obj as T;
-            return value != null;
         }
     }
 }
