@@ -121,6 +121,7 @@
                 if (obj.TryGetValue("msg_text", out JToken msgText)) {
                     smallTV.MessageText = msgText.ToString();
                 }
+                d.Extra = smallTV;
             }
         }
         private static void resolveDanmakuMsg (ref DanmakuModel d, JObject obj) {
