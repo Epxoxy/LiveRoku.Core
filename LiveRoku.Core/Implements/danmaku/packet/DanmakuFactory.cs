@@ -45,6 +45,10 @@
                         d.RoomID = roomId?.ToString();
                     resolveDanmakuMsg (ref d, obj);
                     break;
+                case "SYS_MSG":
+                    d.MsgType = MsgTypeEnum.SystemMsg;
+                    resolveSmallTVMsg(ref d, obj);
+                    break;
                 case "SEND_GIFT":
                     d.MsgType = MsgTypeEnum.GiftSend;
                     d.GiftName = obj["data"]["giftName"].ToString ();
@@ -98,6 +102,27 @@
             }
         }
 
+        private static void resolveSmallTVMsg(ref DanmakuModel d, JObject obj) {
+            if(obj.TryGetValue("tv_id", out JToken tvId)) {
+                var smallTV = new SmallTV();
+                smallTV.TVId = tvId.ToString();
+                if (obj.TryGetValue("url", out JToken url)) {
+                    smallTV.Url = url.ToString();
+                }
+                if (obj.TryGetValue("roomid", out JToken roomId)) {
+                    smallTV.RoomId = roomId.ToString();
+                }
+                if (obj.TryGetValue("real_roomid", out JToken realRoomId)) {
+                    smallTV.RealRoomId = realRoomId.ToString();
+                }
+                if (obj.TryGetValue("msg", out JToken msg)) {
+                    smallTV.Message = msg.ToString();
+                }
+                if (obj.TryGetValue("msg_text", out JToken msgText)) {
+                    smallTV.MessageText = msgText.ToString();
+                }
+            }
+        }
         private static void resolveDanmakuMsg (ref DanmakuModel d, JObject obj) {
             var data = (JArray) obj["info"];
             var length = data.Count;

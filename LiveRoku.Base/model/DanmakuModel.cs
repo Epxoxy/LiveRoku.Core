@@ -5,6 +5,10 @@ using System.Collections.Generic;
 namespace LiveRoku.Base {
     public enum MsgTypeEnum {
         /// <summary>
+        /// System message
+        /// </summary>
+        SystemMsg,
+        /// <summary>
         /// 彈幕
         /// </summary>
         Comment,
@@ -184,7 +188,8 @@ namespace LiveRoku.Base {
         /// </summary>
         public int JSON_Version { get; set; }
 
-        public DanmakuOptions CommentOptions { get; private set; }
+        public DanmakuOptions CommentOptions { get; private set; }//Comment text options
+        public object Extra { get; set; }//Extra data, or maybe better to use System.Dynamic
 
         public DanmakuModel() {
             CommentOptions = new DanmakuOptions(0);

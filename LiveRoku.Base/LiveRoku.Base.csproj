@@ -52,6 +52,7 @@
     <Compile Include="logger\ILogHandler.cs" />
     <Compile Include="logger\ILogger.cs" />
     <Compile Include="model\DanmakuOptions.cs" />
+    <Compile Include="model\SmallTV.cs" />
     <Compile Include="setting\AbstractSettingsBase.cs" />
     <Compile Include="setting\EasySettings.cs" />
     <Compile Include="model\ILowList.cs" />
