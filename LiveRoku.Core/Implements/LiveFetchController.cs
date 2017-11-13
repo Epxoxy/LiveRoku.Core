@@ -83,6 +83,9 @@ namespace LiveRoku.Core {
             emitter.emptyHandlers ();
         }
 
+        //-----------------------
+        //--- Fetch room info ---
+        //-----------------------
         public IRoomInfo getRoomInfo (bool refresh) {
             if (!IsRunning || refresh) {
                 string shortId = pref.ShortRoomId;
@@ -90,16 +93,15 @@ namespace LiveRoku.Core {
                     if (!shortId.Equals(dataApi.ShortRoomId)) {
                         dataApi.resetShortId(shortId);
                     }
-                    var info = dataApi.fetchRoomInfo();
-                    actor.onRoomInfo(info);
+                    refreshRoomInfo();
                 }
             }
             return dataApi.RoomInfo;
         }
 
-        //.............
-        //Start or Stop
-        //.............
+        //---------------------
+        //--- Stop or start ---
+        //---------------------
         public void stop (bool force = false) => stopImpl (force, false);
 
         public void start () {
@@ -141,6 +143,14 @@ namespace LiveRoku.Core {
             }
         }
 
+        //Re-get roominfo and raise event
+        private IRoomInfo refreshRoomInfo() {
+            var info = dataApi.fetchRoomInfo();
+            actor.onRoomInfo(info);
+            dmCarrier.syncStatusFrom(info);
+            return info;
+        }
+
         private void stopImpl (bool force, bool callByInternal) {
             Debug.WriteLine ("stopImpl invoke");
             if (!callByInternal /* so network watcher needless*/) {
@@ -157,6 +167,7 @@ namespace LiveRoku.Core {
             }
         }
 
+        //Prepare download after basic parameters checked
         private void prepareDownload () {
             //Prepare to start task
             //Cancel when no result back over five second
@@ -173,8 +184,7 @@ namespace LiveRoku.Core {
                 mgr.runOnlyOne("fetch-start-impl", () => {
                     if (isUpdated/*means get args successful*/) {
                         mgr.runOnlyOne("fetch-room-info", () => {
-                            //var info = argsBean.fetchRoomInfo();
-                            actor.onRoomInfo(dataApi.fetchRoomInfo());
+                            refreshRoomInfo();
                         });
                         //All parameters ready
                         emitter.boardcastWaiting();
@@ -187,7 +197,10 @@ namespace LiveRoku.Core {
                 });
             });
         }
-        
+
+        //--------------------
+        //--- Help method ----
+        //--------------------
         private bool isWorkModeAndLiveOn() {
             return IsRunning && dmCarrier.IsLiveOn == true;
         }

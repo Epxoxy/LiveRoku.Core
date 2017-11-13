@@ -17,6 +17,6 @@
         public virtual void onDanmakuInactive() { }
         public virtual void onDanmakuReceive(DanmakuModel danmaku) { }
         public virtual void onHotUpdateByDanmaku(long popularity) { }
-        public virtual void onLiveStatusUpdateByDanmaku(bool isOn) { }
+        public virtual void onLiveStatusUpdate(bool isOn) { }
     }
 }

@@ -53,6 +53,7 @@
             if (cts?.Token.CanBeCanceled == true) {
                 try {
                     cts.Cancel ();
+                    cts.Dispose();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -67,7 +68,7 @@
                 return Task.FromResult(false);
             var cts = timeout > 0 ? new CancellationTokenSource(timeout) :
                 new CancellationTokenSource();
-            cts.Token.Register(() => {
+            var ctr = cts.Token.Register(() => {
                 Debug.WriteLine($"Cancel {tokenKey}", "tasks");
                 onCancelled?.Invoke();
             });
@@ -78,9 +79,11 @@
                     action.Invoke(cts.Token);
                 } catch (Exception e) {
                     e.printStackTrace("cancel-mgr");
+                } finally {
+                    this.remove(tokenKey);
+                    this.cancel(cts);
+                    using (ctr) { }
                 }
-                this.remove(tokenKey);
-                this.cancel(tokenKey);
             }, cts.Token);
         }
 
@@ -89,7 +92,7 @@
                 return Task.FromResult(false);
             var cts = timeout > 0 ? new CancellationTokenSource(timeout) :
                 new CancellationTokenSource();
-            cts.Token.Register(() => {
+            var ctr = cts.Token.Register(() => {
                 Debug.WriteLine($"Cancel {tokenKey}", "tasks");
                 onCancelled?.Invoke();
             });
@@ -100,9 +103,11 @@
                     action.Invoke();
                 } catch (Exception e) {
                     e.printStackTrace("cancel-mgr");
+                } finally {
+                    this.remove(tokenKey);
+                    this.cancel(cts);
+                    using (ctr) { }
                 }
-                this.remove(tokenKey);
-                this.cancel(tokenKey);
             }, cts.Token);
         }
 

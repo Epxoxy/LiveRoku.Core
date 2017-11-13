@@ -58,6 +58,12 @@
             }
         }
 
+        public void syncStatusFrom(IRoomInfo info) {
+            if(info != null) {
+                updateIsLiveOnTo(info.IsOn);
+            }
+        }
+
         public void purgeEvents () => emitter.purgeEvents ();
         
         public void disconnect () {
@@ -161,30 +167,30 @@
 
         private void emitDanmaku (DanmakuModel danmaku) {
             if (!isEnabled /*May not come here*/ ) return;
-            findLiveStatusFrom (danmaku);
+            findLiveCommandFrom (danmaku);
             PretreatDanmaku?.Invoke(danmaku);
             resolver.onDanmakuReceive(danmaku);
         }
 
-        private void findLiveStatusFrom (DanmakuModel danmaku) {
+        private void findLiveCommandFrom (DanmakuModel danmaku) {
             if (MsgTypeEnum.LiveEnd == danmaku.MsgType) {
                 //Update live status
-                updateToLiveStatus (false);
+                updateIsLiveOnTo (false);
                 logger.log (Level.Info, "Message received : Live End.");
                 LiveCommandRecv?.Invoke(MsgTypeEnum.LiveEnd);
             } else if (MsgTypeEnum.LiveStart == danmaku.MsgType) {
                 //Update live status
-                updateToLiveStatus (true);
+                updateIsLiveOnTo (true);
                 logger.log (Level.Info, "Message received : Live Start.");
                 LiveCommandRecv?.Invoke(MsgTypeEnum.LiveStart);
             }
         }
 
-        private void updateToLiveStatus (bool isLiveOn, bool raiseEvent = true) {
+        private void updateIsLiveOnTo (bool isLiveOn, bool raiseEvent = true) {
             if (this.IsLiveOn != isLiveOn) {
                 this.IsLiveOn = isLiveOn;
                 if (raiseEvent) {
-                    resolver.onLiveStatusUpdateByDanmaku(isLiveOn);
+                    resolver.onLiveStatusUpdate(isLiveOn);
                 }
             }
         }

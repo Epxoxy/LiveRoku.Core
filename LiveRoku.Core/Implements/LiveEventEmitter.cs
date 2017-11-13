@@ -55,9 +55,9 @@
                     binder.onMissionComplete(mission);
                 });
             }
-            public void onLiveStatusUpdateByDanmaku(bool isOn) {
+            public void onLiveStatusUpdate(bool isOn) {
                 boardcast(danmakuHandlers, handler => {
-                    handler.onLiveStatusUpdateByDanmaku(isOn);
+                    handler.onLiveStatusUpdate(isOn);
                 });
             }
             public void onHotUpdateByDanmaku(long popularity) {

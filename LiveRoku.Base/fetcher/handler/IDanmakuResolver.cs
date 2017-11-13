@@ -5,6 +5,6 @@
         void onDanmakuInactive();
         void onDanmakuReceive(DanmakuModel danmaku);
         void onHotUpdateByDanmaku(long popularity);
-        void onLiveStatusUpdateByDanmaku(bool isOn);
+        void onLiveStatusUpdate(bool isOn);
     }
 }

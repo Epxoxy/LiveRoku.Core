@@ -47,7 +47,7 @@ namespace LiveRoku.Test {
             this.fetcher = fetcher;
         }
 
-        public override void onLiveStatusUpdateByDanmaku (bool isOn) {
+        public override void onLiveStatusUpdate (bool isOn) {
             Debug.WriteLine ($"Status --> {(isOn ? "on" : "off")}", "program");
         }
 
