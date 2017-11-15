@@ -5,11 +5,11 @@
         string ShortRoomId { get; }
         bool IsShortIdTheRealId { get; }
         //** Location
-        string Folder { get; }
-        string FileFormat { get; }
+        string StoreFolder { get; }
+        string StoreFileNameFormat { get; }
         //** Download control
-        bool DanmakuRequire { get; }
-        bool VideoRequire { get; }
+        bool LocalDanmakuRequire { get; }
+        bool LocalVideoRequire { get; }
         bool AutoStart { get; }
         //** Extra
         string UserAgent { get; }

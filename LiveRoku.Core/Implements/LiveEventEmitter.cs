@@ -12,6 +12,7 @@
         public ILowList<IDanmakuResolver> DanmakuHandlers => emitter.danmakuHandlers;
         public ILowList<ILogHandler> LogHandlers => emitter.LogHandlers;
         public ILogger Logger => this;
+
         private LiveEventEmitter emitter = new LiveEventEmitter();
 
         public void log(Level level, string message) {
@@ -24,6 +25,7 @@
             internal readonly LowList<IStatusBinder> statusBinders = new LowList<IStatusBinder>();
             internal readonly LowList<IDanmakuResolver> danmakuHandlers = new LowList<IDanmakuResolver>();
             private readonly LowList<ILogHandler> logHandlers = new LowList<ILogHandler>();
+            private ILiveFetcher fetcher;
 
             internal void emptyHandlers() {
                 statusBinders.clear();

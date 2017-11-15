@@ -25,11 +25,11 @@ namespace LiveRoku.Test {
         public string RealRoomId => null;
         public bool IsShortIdTheRealId => false;
 
-        public string Folder => Args.Folder;
-        public string FileFormat => Args.FileFormat;
+        public string StoreFolder => Args.Folder;
+        public string StoreFileNameFormat => Args.FileFormat;
 
-        public bool DanmakuRequire => Args.DanmakuRequire;
-        public bool VideoRequire => Args.VideoRequire;
+        public bool LocalDanmakuRequire => Args.DanmakuRequire;
+        public bool LocalVideoRequire => Args.VideoRequire;
         public bool AutoStart => Args.AutoStart;
         public string UserAgent => Args.UserAgent;
 
