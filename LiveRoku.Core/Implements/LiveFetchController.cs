@@ -106,6 +106,7 @@ namespace LiveRoku.Core {
 
         public void start () {
             if (IsRunning) return;
+            IsRunning = true;
             //Basic initialize
             network.assumeAvailability (true);
             network.attach (available => {
@@ -113,8 +114,7 @@ namespace LiveRoku.Core {
                 if (!available) stopImpl (false, true);
                 else if (!IsRunning) start ();
             });
-            IsRunning = true;
-            bool isVideoMode = pref.VideoRequire;
+            bool isVideoMode = pref.LocalVideoRequire;
             //Register linker
             actor = isVideoMode ? dloadActor : emptyActor;
             //reset state
@@ -128,11 +128,11 @@ namespace LiveRoku.Core {
                 stop ();
             } else {
                 //Copy parameters
-                prefCopy.Folder = pref.Folder;
-                prefCopy.FileNameFormat = pref.FileFormat;
+                prefCopy.Folder = pref.StoreFolder;
+                prefCopy.FileNameFormat = pref.StoreFileNameFormat;
                 prefCopy.AutoStart = pref.AutoStart;
                 prefCopy.VideoRequire = isVideoMode;
-                prefCopy.DanmakuRequire = pref.DanmakuRequire;
+                prefCopy.DanmakuRequire = pref.LocalDanmakuRequire;
                 //!
                 dataApi.resetShortId(roomIdText);
                 dataApi.IsShortIdTheRealId = pref.IsShortIdTheRealId;

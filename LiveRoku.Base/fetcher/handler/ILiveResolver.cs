@@ -1,3 +1,3 @@
 ﻿namespace LiveRoku.Base {
-    public interface ILiveResolver : IDownloadProgressBinder, IStatusBinder, IDanmakuResolver { }
+    public interface ILiveResolver : IDownloadProgressBinder, IStatusBinder, IDanmakuResolver, Logger.ILogHandler { }
 }

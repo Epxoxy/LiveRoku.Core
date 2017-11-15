@@ -1,4 +1,6 @@
-﻿namespace LiveRoku.Base {
+﻿using LiveRoku.Base.Logger;
+
+namespace LiveRoku.Base {
     //All handlers implement base
     public class LiveResolverBase : ILiveResolver{
 
@@ -18,5 +20,7 @@
         public virtual void onDanmakuReceive(DanmakuModel danmaku) { }
         public virtual void onHotUpdateByDanmaku(long popularity) { }
         public virtual void onLiveStatusUpdate(bool isOn) { }
+
+        public virtual void onLog(Level level, string message) { }
     }
 }
