@@ -17,7 +17,7 @@
         private readonly string coreDir;
         private const string appDataFileName = "app.data";
         private IDictionary<string, Assembly> assemblies;
-        private LoadContextBase baseCtx;
+        private ModuleContextBase globalBaseCtx;
 
         public LoadManager (string baseDir) {
             if (string.IsNullOrEmpty (baseDir) || !Directory.Exists (baseDir))
@@ -38,36 +38,47 @@
             AppDomain.CurrentDomain.AssemblyResolve -= findCache;
             AppDomain.CurrentDomain.AssemblyLoad -= cacheAssembly;
         }
+        
+        public ModuleContextLoader generateLoader(bool reload = false) {
+            if (globalBaseCtx == null || reload) {
+                globalBaseCtx = reloadCtxBase();
+            }
+            if (globalBaseCtx != null) {
+                return new ModuleContextLoader(globalBaseCtx, dataDir, appDataFileName);
+            }
+            return null;
+        }
 
-        private LoadContextBase reloadCtxBase () {
+        private ModuleContextBase reloadCtxBase () {
             //Load core part
             Type coreType = null;
             IEnumerable<Type> pluginTypes = null;
-            LoadConfig appLocalData = null;
-            var extraSettings = new Dictionary<string, SettingsSection> ();
+            AppLocalData appLocalData = null;
+            var extraSettings = new Dictionary<string, SettingSection> ();
+            //Load core.dll
             if ((coreType = findCoreImpl (coreDir)) == null)
                 throw new Exception ("Core.dll cannot be load.");
             //Get plugin types
-            runSafely (() => {
+            Utils.runSafely (() => {
                 pluginTypes = getTypesImplFromDirectory<IPlugin> (pluginDir, "*.dll");
             });
             //Get app local data
-            runSafely (() => {
-                appLocalData = FileHelper.deserializeFromPath<LoadConfig> (Path.Combine (dataDir, appDataFileName));
+            Utils.runSafely (() => {
+                appLocalData = FileHelper.deserializeFromPath<AppLocalData> (Path.Combine (dataDir, appDataFileName));
             });
             //Get extra settings
             foreach (var file in FileHelper.safelyGetFiles (dataDir, "*.txt")) {
-                runSafely (() => {
-                    var collection = FileHelper.deserializeFromPath<SettingsSection> (file);
+                Utils.runSafely (() => {
+                    var collection = FileHelper.deserializeFromPath<SettingSection> (file);
                     if (collection != null)
                         extraSettings.Add (collection.AccessKey, collection);
                 });
             }
             //set context config
-            appLocalData = appLocalData ?? new LoadConfig ();
+            appLocalData = appLocalData ?? new AppLocalData ();
             appLocalData.ExtraSettings = extraSettings;
             //set context
-            var ctx = new LoadContextBase (dataDir, appDataFileName) {
+            var ctx = new ModuleContextBase (dataDir, appDataFileName) {
                 CoreType = coreType,
                 AppLocalData = appLocalData,
                 PluginTypes = pluginTypes.ToList ()
@@ -80,60 +91,9 @@
                     });
                 }
             }
-            ctx.LoadOk = true;
             return ctx;
         }
-
-        public LoadContextBase initCtxBase (bool reload = false) {
-            if (baseCtx == null || reload) {
-                baseCtx = reloadCtxBase ();
-            }
-            return baseCtx;
-        }
-
-        public LoadContext create (IPreferences argsHost, bool reload = false) {
-            if (argsHost == null) {
-                throw new ArgumentNullException (nameof (argsHost));
-            }
-            initCtxBase (reload);
-            var instance = Activator.CreateInstance (baseCtx.CoreType, argsHost);
-            if (instance == null) {
-                throw new Exception ("Core implement cannot be create.");
-            }
-            //make plugins
-            var plugins = new List<IPlugin> ();
-            if (baseCtx.PluginTypes.Count > 0) {
-                var orderedList = baseCtx.AppLocalData.AppConfigs.Values.ToList ().OrderBy (config => config.Priority);
-                var invalidFileNameChars = new string (Path.GetInvalidFileNameChars ());
-                var regFileName = new Regex (string.Format ("[{0}]", Regex.Escape (invalidFileNameChars)));
-                foreach (var config in orderedList) {
-                    //make instance
-                    if (!config.IsEnable) continue;
-                    runSafely (() => {
-                        var plugin = (IPlugin) Activator.CreateInstance (config.HostType);
-                        plugins.Add (plugin);
-                        var key = plugin.Token ?? plugin.GetType ().FullName;
-                        //set configuration
-                        config.AccessToken = key;
-                        if (string.IsNullOrEmpty (config.ConfigName))
-                            config.ConfigName = regFileName.Replace (key, "").ToLower () + ".txt";
-                        //restore setting
-                        if (baseCtx.AppLocalData.ExtraSettings.TryGetValue (key, out SettingsSection settings)) {
-                            PluginHelper.applySettings (plugin, settings.Items);
-                        }
-                    });
-                }
-            }
-            return new LoadContext (dataDir, appDataFileName) {
-                Fetcher = instance as ILiveFetcher,
-                    Plugins = plugins,
-                    AppLocalData = baseCtx.AppLocalData,
-                    CoreType = baseCtx.CoreType,
-                    PluginTypes = baseCtx.PluginTypes,
-                    LoadOk = true
-            };
-        }
-
+        
         //Assembly help
         private void cacheAssembly (object sender, AssemblyLoadEventArgs args) {
             var assembly = args.LoadedAssembly;
@@ -164,17 +124,17 @@
 
         //Implement check
         private Type findCoreImpl (string dir) {
-            return runSafely (() => {
-                var files = Directory.GetFiles (dir);
-                var target = default (Type);
-                if (files.Length < 1) return target;
-                foreach (var file in files) {
-                    target = getTypesImplFromDll<ILiveFetcher> (files.First ()).FirstOrDefault ();
-                    if (target == null) continue;
-                    return target;
-                }
+            var files = Directory.GetFiles(dir);
+            var target = default(Type);
+            if (files.Length < 1)
                 return target;
-            });
+            foreach (var file in files) {
+                target = getTypesImplFromDll<ILiveFetcher>(files.First()).FirstOrDefault();
+                if (target == null)
+                    continue;
+                return target;
+            }
+            return target;
         }
 
         private IEnumerable<Type> getTypesImplFromDirectory<T> (string dir, string searchPattern) {
@@ -182,7 +142,7 @@
             var result = new List<Type> ();
             foreach (var file in Directory.EnumerateFiles (dir, searchPattern)) {
                 IEnumerable<Type> types = null;
-                runSafely (() => {
+                Utils.runSafely (() => {
                     types = getTypesImplFromDll<T> (file);
                 });
                 if (types == null) continue;
@@ -205,21 +165,85 @@
             return null;
         }
 
-        static T runSafely<T> (Func<T> doWhat) {
+    }
+
+    public class Utils {
+        public static T runSafely<T>(Func<T> doWhat) {
             try {
-                return doWhat.Invoke ();
+                return doWhat.Invoke();
             } catch (Exception e) {
-                System.Diagnostics.Debug.WriteLine (e.ToString ());
+                System.Diagnostics.Debug.WriteLine(e.ToString());
             }
-            return default (T);
+            return default(T);
         }
 
-        static void runSafely (Action doWhat) {
+        public static void runSafely(Action doWhat) {
             try {
-                doWhat.Invoke ();
+                doWhat.Invoke();
             } catch (Exception e) {
-                System.Diagnostics.Debug.WriteLine (e.ToString ());
+                System.Diagnostics.Debug.WriteLine(e.ToString());
             }
         }
     }
+
+    public class ModuleContextLoader {
+        public ModuleContextBase BaseContext => baseCtx;
+        private readonly ModuleContextBase baseCtx;
+        private readonly string dataDir;
+        private readonly string appDataFileName;
+
+        public ModuleContextLoader(ModuleContextBase baseCtx, string dataDir, string appDataFileName) {
+            this.baseCtx = baseCtx;
+            this.dataDir = dataDir;
+            this.appDataFileName = appDataFileName;
+        }
+
+        public ModuleContext create(IPreferences pref) {
+            if (pref == null) {
+                throw new ArgumentNullException(nameof(pref));
+            }
+            if (baseCtx == null) {
+                throw new InvalidOperationException("Cannot load without valid " + nameof(baseCtx));
+            }
+            //setupCtxBase(reload);
+            var instance = Activator.CreateInstance(baseCtx.CoreType, pref);
+            if (instance == null) {
+                throw new Exception("Core implement cannot be create.");
+            }
+            //make plugins
+            var plugins = new List<IPlugin>();
+            if (baseCtx.PluginTypes.Count > 0) {
+                var orderedList = baseCtx.AppLocalData.AppConfigs.Values.ToList().OrderBy(config => config.Priority);
+                var invalidFileNameChars = new string(Path.GetInvalidFileNameChars());
+                var regFileName = new Regex(string.Format("[{0}]", Regex.Escape(invalidFileNameChars)));
+                foreach (var config in orderedList) {
+                    //make instance
+                    if (!config.IsEnable)
+                        continue;
+                    Utils.runSafely(() => {
+                        var plugin = (IPlugin)Activator.CreateInstance(config.HostType);
+                        plugins.Add(plugin);
+                        var key = plugin.Token ?? plugin.GetType().FullName;
+                        //set configuration
+                        config.AccessToken = key;
+                        if (string.IsNullOrEmpty(config.ConfigName))
+                            config.ConfigName = regFileName.Replace(key, "").ToLower() + ".txt";
+                        //restore setting
+                        if (baseCtx.AppLocalData.ExtraSettings.TryGetValue(key, out SettingSection settings)) {
+                            PluginHelper.applySettings(plugin, settings.Items);
+                        }
+                    });
+                }
+            }
+            return new ModuleContext(dataDir, appDataFileName) {
+                Fetcher = instance as ILiveFetcher,
+                Plugins = plugins,
+                AppLocalData = baseCtx.AppLocalData,
+                CoreType = baseCtx.CoreType,
+                PluginTypes = baseCtx.PluginTypes
+            };
+        }
+
+    }
+
 }

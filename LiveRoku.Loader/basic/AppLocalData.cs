@@ -2,13 +2,13 @@
     using System.Collections.Generic;
     using LiveRoku.Base;
 
-    public class LoadConfig {
+    public class AppLocalData {
 
-        internal SettingsSection AppSettings { get; } = new SettingsSection ("app.settings", null);
+        internal SettingSection AppSettings { get; } = new SettingSection ("app.settings", null);
         public Dictionary<string, PluginConfig> AppConfigs { get; internal set; } = new Dictionary<string, PluginConfig> ();
 
         [Newtonsoft.Json.JsonIgnore]
-        public Dictionary<string, SettingsSection> ExtraSettings { get; internal set; }
+        public Dictionary<string, SettingSection> ExtraSettings { get; internal set; }
 
         [Newtonsoft.Json.JsonIgnore]
         internal string StoreDir { get; set; }
@@ -18,9 +18,9 @@
         internal string ExtraFileName { get; set; }
 
         private ISettings appSettings;
-        public LoadConfig () { }
+        public AppLocalData () { }
 
-        public LoadConfig (string dataDir, string dataFileName, string extraConfig) {
+        public AppLocalData (string dataDir, string dataFileName, string extraConfig) {
             this.StoreDir = dataDir;
             this.AppDataFileName = dataFileName;
             this.ExtraFileName = extraConfig;

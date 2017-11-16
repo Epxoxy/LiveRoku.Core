@@ -1,18 +1,18 @@
 ﻿namespace LiveRoku.Loader {
     using System.Collections.Generic;
-    public class SettingsSection {
+    public class SettingSection {
 
         public string AccessKey { get; private set; }
         public Dictionary<string, object> Items { get; private set; }
 
-        public SettingsSection () { }
+        public SettingSection () { }
 
-        public SettingsSection (string accessKey, Dictionary<string, object> items) {
+        public SettingSection (string accessKey, Dictionary<string, object> items) {
             this.AccessKey = accessKey;
             this.Items = items ?? new Dictionary<string, object> ();
         }
 
-        public SettingsSection (string accessKey) : this (accessKey, null) { }
+        public SettingSection (string accessKey) : this (accessKey, null) { }
 
         public void combineWith (IDictionary<string, object> settings) {
             if (settings == null || settings.Count <= 0) return;

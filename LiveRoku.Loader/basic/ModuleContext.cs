@@ -5,11 +5,11 @@
     using LiveRoku.Base.Plugin;
     using LiveRoku.Loader.Helper;
 
-    public class LoadContext : LoadContextBase, IPluginHost {
+    public class ModuleContext : ModuleContextBase, IPluginHost {
         public List<IPlugin> Plugins { get; internal set; }
         public ILiveFetcher Fetcher { get; internal set; }
 
-        public LoadContext (string dataDir, string appDataFileName) : base (dataDir, appDataFileName) { }
+        public ModuleContext (string dataDir, string appDataFileName) : base (dataDir, appDataFileName) { }
 
         public void saveAppData () {
             saveAppConfigs ();
@@ -26,14 +26,14 @@
 
         public bool saveSettingsOf (IPlugin plugin, PluginConfig config) {
             var settings = PluginHelper.findSettings (plugin);
-            SettingsSection collection = null;
+            SettingSection collection = null;
             if (AppLocalData.ExtraSettings == null) {
-                AppLocalData.ExtraSettings = new Dictionary<string, SettingsSection> ();
+                AppLocalData.ExtraSettings = new Dictionary<string, SettingSection> ();
             }
             var fileName = config.ConfigName;
             var path = System.IO.Path.Combine (DataDirectory, fileName);
             if (!AppLocalData.ExtraSettings.TryGetValue (config.AccessToken, out collection)) {
-                collection = new SettingsSection (config.AccessToken);
+                collection = new SettingSection (config.AccessToken);
                 AppLocalData.ExtraSettings.Add (config.AccessToken, collection);
             }
             collection.combineWith (settings);
