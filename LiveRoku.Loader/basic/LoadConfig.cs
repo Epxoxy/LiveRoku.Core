@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
-using LiveRoku.Base;
-namespace LiveRoku.Loader {
-    public class ContextLoadConfig {
+﻿namespace LiveRoku.Loader {
+    using System.Collections.Generic;
+    using LiveRoku.Base;
+
+    public class LoadConfig {
 
         internal SettingsSection AppSettings { get; } = new SettingsSection ("app.settings", null);
         public Dictionary<string, PluginConfig> AppConfigs { get; internal set; } = new Dictionary<string, PluginConfig> ();
@@ -17,9 +18,9 @@ namespace LiveRoku.Loader {
         internal string ExtraFileName { get; set; }
 
         private ISettings appSettings;
-        public ContextLoadConfig () { }
+        public LoadConfig () { }
 
-        public ContextLoadConfig (string dataDir, string dataFileName, string extraConfig) {
+        public LoadConfig (string dataDir, string dataFileName, string extraConfig) {
             this.StoreDir = dataDir;
             this.AppDataFileName = dataFileName;
             this.ExtraFileName = extraConfig;

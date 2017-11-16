@@ -7,6 +7,7 @@
     using System.Text.RegularExpressions;
     using LiveRoku.Base;
     using LiveRoku.Base.Plugin;
+    using LiveRoku.Loader.Helper;
 
     public class LoadManager : IDisposable {
         public string BaseDirectory => baseDir;
@@ -42,7 +43,7 @@
             //Load core part
             Type coreType = null;
             IEnumerable<Type> pluginTypes = null;
-            ContextLoadConfig appLocalData = null;
+            LoadConfig appLocalData = null;
             var extraSettings = new Dictionary<string, SettingsSection> ();
             if ((coreType = findCoreImpl (coreDir)) == null)
                 throw new Exception ("Core.dll cannot be load.");
@@ -52,7 +53,7 @@
             });
             //Get app local data
             runSafely (() => {
-                appLocalData = FileHelper.deserializeFromPath<ContextLoadConfig> (Path.Combine (dataDir, appDataFileName));
+                appLocalData = FileHelper.deserializeFromPath<LoadConfig> (Path.Combine (dataDir, appDataFileName));
             });
             //Get extra settings
             foreach (var file in FileHelper.safelyGetFiles (dataDir, "*.txt")) {
@@ -63,7 +64,7 @@
                 });
             }
             //set context config
-            appLocalData = appLocalData ?? new ContextLoadConfig ();
+            appLocalData = appLocalData ?? new LoadConfig ();
             appLocalData.ExtraSettings = extraSettings;
             //set context
             var ctx = new LoadContextBase (dataDir, appDataFileName) {

@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-namespace LiveRoku.Loader {
+﻿namespace LiveRoku.Loader {
+    using System.Collections.Generic;
     public class SettingsSection {
 
         public string AccessKey { get; private set; }

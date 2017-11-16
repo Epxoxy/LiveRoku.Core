@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using LiveRoku.Base;
-using LiveRoku.Base.Plugin;
+﻿namespace LiveRoku.Loader {
+    using System.Collections.Generic;
+    using System.IO;
+    using LiveRoku.Base;
+    using LiveRoku.Base.Plugin;
+    using LiveRoku.Loader.Helper;
 
-
-namespace LiveRoku.Loader {
     public class LoadContext : LoadContextBase, IPluginHost {
         public List<IPlugin> Plugins { get; internal set; }
         public ILiveFetcher Fetcher { get; internal set; }

@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using LiveRoku.Base.Plugin;
-namespace LiveRoku.Loader {
+﻿namespace LiveRoku.Loader.Helper {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using LiveRoku.Base.Plugin;
     internal class PluginHelper {
 
         public static IDictionary<string, object> findSettings (object instance) {

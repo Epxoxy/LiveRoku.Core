@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
+﻿namespace LiveRoku.Loader.Helper {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reflection;
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Serialization;
 
-namespace LiveRoku.Loader {
     public class NonPublicPropertiesContractResolver : DefaultContractResolver {
 
         protected override IList<JsonProperty> CreateProperties (Type type, MemberSerialization memberSerialization) {
