@@ -8,6 +8,7 @@
     using LiveRoku.Base;
     using LiveRoku.Base.Plugin;
     using LiveRoku.Loader.Helper;
+    using LiveRoku.Loader.Base;
 
     public class LoadManager : IDisposable {
         public string BaseDirectory => baseDir;

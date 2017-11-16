@@ -105,7 +105,7 @@
                         Debug.WriteLine($"1/{what.RequestTimes} Trying to restart downloader.", "re-work");
                         logger.log(Level.Info, $"Flv address updated : {dataApi.VideoUrl}");
                         downloadAsyncBy(worker, pref, dataApi);
-                        Thread.Sleep(10000);//Wait downloader streaming
+                        Thread.Sleep(6000);//Wait downloader streaming
                         if (!worker.IsStreaming) {
                             worker.stopAsync(true);
                             Debug.WriteLine("Timeout ok, but start fail.", "re-work");
@@ -114,6 +114,7 @@
                     } else /*Reconfirm but restart not allow*/{
                         Debug.WriteLine("Reconfirm restart not allow.", "re-work");
                     }
+                    Thread.Sleep(10);//reduce CPU usage calls frequently
                 } catch (Exception e) {
                     e.printOn(logger);
                 }

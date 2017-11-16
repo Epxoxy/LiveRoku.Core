@@ -21,7 +21,8 @@
         private readonly ReconnectArgs reconnect = new ReconnectArgs ();
         private readonly object keepOneTransform = new object ();
         //private
-        private CancellationTokenSource timeout;
+        private CancellationTokenSource timeoutCts;
+        private CancellationTokenSource delayCts;
         private NetResolverLite transform;
         private string realRoomId;
         private bool isEnabled;
@@ -69,15 +70,18 @@
         public void disconnect () {
             this.isEnabled = false;
             //close connection
-            if (transform?.isActive () == true) {
+            if (transform != null) {
                 var temp = transform;
                 transform = null;
                 temp.close();
                 temp.Resolvers.clear();
                 temp = null;
             }
-            if (timeout?.Token.CanBeCanceled == true) {
-                timeout.Cancel();
+            if (timeoutCts?.Token.CanBeCanceled == true) {
+                timeoutCts.Cancel();
+            }
+            if (delayCts?.Token.CanBeCanceled == true) {
+                delayCts.Cancel();
             }
         }
 
@@ -102,7 +106,7 @@
 
         private bool activeTransformAsync (String host, int port, string realRoomId) {
             lock (keepOneTransform) {
-                if (IsChannelActive) return false;
+                if (!isEnabled || IsChannelActive) return false;
                 //............
                 transform?.Resolvers.clear ();
                 transform = new NetResolverLite ();
@@ -131,8 +135,11 @@
             if (e != null) {
                 logger.log(Level.Error, e.Message);
             }
-            if (timeout?.Token.CanBeCanceled == true) {
-                timeout.Cancel();
+            if (timeoutCts?.Token.CanBeCanceled == true) {
+                timeoutCts.Cancel();
+            }
+            if (delayCts?.Token.CanBeCanceled == true) {
+                delayCts.Cancel();
             }
             if (!isEnabled) { //donnot reconnect when download stopped.
                 return;
@@ -144,21 +151,26 @@
             //set cancellation and start task.
             bool connectionOK = false;
             long used = 3000;
-            timeout = new CancellationTokenSource(3000);
+            timeoutCts = new CancellationTokenSource(3000);
             Task.Run(() => {
                 var sw = Stopwatch.StartNew();
                 connectionOK = SharedHelper.checkCanConnect("live.bilibili.com");
                 sw.Stop();
                 used = sw.ElapsedMilliseconds;
-            }, timeout.Token).Wait();
+            }, timeoutCts.Token).Wait();
+            delayCts = new CancellationTokenSource();
             var delay = reconnect.DelayReconnectMs - used;
             if (delay > 0) {
                 logger.log(Level.Info, $"Trying to reconnect to danmaku server after {(delay) / (double)1000}s");
-                await Task.Delay(TimeSpan.FromMilliseconds(delay));
-                if (!isEnabled)
+                try {
+                    await Task.Delay(TimeSpan.FromMilliseconds(delay), delayCts.Token);
+                }catch{
+                    logger.log(Level.Info, $"Delay exception occurred");
                     return;
-            } else
-                logger.log(Level.Info, "Trying to reconnect to danmaku server.");
+                }
+            } else logger.log(Level.Info, "Trying to reconnect to danmaku server.");
+            if (!isEnabled)
+                return;
             //increase delay
             reconnect.DelayReconnectMs += (connectionOK ? 1000 : reconnect.RetryTimes * 2000);
             reconnect.RetryTimes++;

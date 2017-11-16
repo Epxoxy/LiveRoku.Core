@@ -181,6 +181,14 @@
             else Fetcher.start();
         }
 
+        public void invokeStart() {
+            Fetcher?.start();
+        }
+
+        public void invokeStop(bool force = false) {
+            Fetcher?.stop(force);
+        }
+
         //----------------------------------------------
         //--------------- ILogHandler ------------------
         //----------------------------------------------

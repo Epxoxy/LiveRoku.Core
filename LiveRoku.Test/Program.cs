@@ -134,11 +134,14 @@ namespace LiveRoku.Test {
                 Console.WriteLine("Load context make a exception. " + e.ToString());
             }).Wait();
             if (bridge.IsCoreLoaded) {
-                bridge.switchStartAndStop();
+                if (string.IsNullOrEmpty(bridge.ShortRoomId)) {
+                    bridge.ShortRoomId = testOneId;
+                }
+                bridge.invokeStart();
                 //Waitting for exit
                 ConsoleKeyInfo press;
                 while ((press = Console.ReadKey()).Key != ConsoleKey.Escape) { }
-                bridge.switchStartAndStop();
+                bridge.invokeStop();
                 bridge.detachAndSave();
             }
             //Make argHost
