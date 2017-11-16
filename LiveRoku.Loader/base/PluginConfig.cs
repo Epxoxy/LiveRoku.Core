@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Loader {
+﻿namespace LiveRoku.Loader.Base {
     public class PluginConfig {
         public System.Type HostType { get; set; }
         public bool IsEnable { get; set; } = true;

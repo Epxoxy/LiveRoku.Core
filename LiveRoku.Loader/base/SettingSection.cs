@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Loader {
+﻿namespace LiveRoku.Loader.Base {
     using System.Collections.Generic;
     public class SettingSection {
 

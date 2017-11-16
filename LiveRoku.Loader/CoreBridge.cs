@@ -1,6 +1,7 @@
 ﻿namespace LiveRoku.Loader {
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
+    using LiveRoku.Loader.Base;
     using PropertyChanged;
     using System;
     using System.Collections.Generic;
