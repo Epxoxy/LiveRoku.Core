@@ -29,17 +29,17 @@
         public string StoreFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         public string StoreFileNameFormat { get; set; } = "{roomId}-{Y}-{M}-{d}-{H}-{m}-{s}.flv";
 
-        public Dictionary<string, bool> RecentRoom { get; set; } = new Dictionary<string, bool>();
+        public Dictionary<string, bool> RecentRooms { get; set; } = new Dictionary<string, bool>();
         public Dictionary<string, object> Extras { get; set; } = new Dictionary<string, object>();
 
         public void addLatestRoom(string roomId, bool isTheRealId) {
             this.LatestRoomId = roomId;
-            if (this.RecentRoom == null)
-                this.RecentRoom = new Dictionary<string, bool>();
-            if (!this.RecentRoom.ContainsKey(roomId)) {
-                this.RecentRoom.Add(roomId, isTheRealId);
+            if (this.RecentRooms == null)
+                this.RecentRooms = new Dictionary<string, bool>();
+            if (!this.RecentRooms.ContainsKey(roomId)) {
+                this.RecentRooms.Add(roomId, isTheRealId);
             } else {
-                this.RecentRoom[roomId] = isTheRealId;
+                this.RecentRooms[roomId] = isTheRealId;
             }
         }
     }
@@ -62,55 +62,66 @@
 
         public string VideoFullPathFormat { get; set; }
         //real-time data
-        public long Popularity { get; set; }
-        public string BitRate { get; set; }
-        public string ReceiveSize { get; set; }
-        public string Duration { get; set; }
+        public long Popularity { get; private set; }
+        public string BitRate { get; private set; }
+        public string ReceiveSize { get; private set; }
+        public string Duration { get; private set; }
         //basic control
-        public bool IsStateChangeable { get; set; } = true;
-        public bool IsPreferencesEditable { get; set; } = true;
+        public bool IsStateChangeable { get; private set; } = true;
+        public bool IsPreferencesEditable { get; private set; } = true;
         //current state
-        public IRoomInfo CurrentRoomInfo { get; set; }
-        public ProcessState CurrentState { get; set; }
-        public string LiveStatusText { get; set; }
+        public IRoomInfo CurrentRoomInfo { get; private set; }
+        public ProcessState CurrentState { get; private set; }
+        public bool IsLiveOn { get; private set; }
+        public bool IsCoreLoaded { get; private set; }
+        public bool IsContextLoaded => ctx != null;
 
         [DoNotNotify]
         private ILiveFetcher Fetcher => ctx?.Fetcher;
-        private LoadContext ctx;
+        private ModuleContext ctx;
         private LoadManager mgr;
-        private bool isLoaded = false;
+        private volatile bool isLoading = false;
 
-        public Task invokeLoad(Action<bool> onCoreLoaded, Action<Exception> tipsError) {
-            if (isLoaded)
+        public Task<bool> setupContext(Action<bool> onCoreLoaded, Action<Exception> wayErrorTips) {
+            if (isLoading)
                 return Task.FromResult(false);
             return Task.Run(() => {
-                isLoaded = true;
-                mgr = new LoadManager(AppDomain.CurrentDomain.BaseDirectory);
-                LoadContextBase ctxBase = null;
-                bool coreLoaded = false;
+                isLoading = true;
+                mgr = mgr ?? new LoadManager(AppDomain.CurrentDomain.BaseDirectory);
+                ModuleContextLoader loader = null;
+                //Load core base
                 runSafely(() => {
-                    ctxBase = mgr.initCtxBase();
-                    coreLoaded = ctxBase?.LoadOk == true;
-                    this.restoreFrom(ctxBase.AppLocalData.getAppSettings());
-                }, tipsError);
-                onCoreLoaded?.Invoke(coreLoaded);
-                //Create core context
-                try { if (!coreLoaded || (ctx = mgr.create(this)) == null) return; } catch (Exception ex) { tipsError(ex); }
-                //Register handlers of this to fetcher
-                ctx.Fetcher.Logger.LogHandlers.add(this);
-                ctx.Fetcher.LiveProgressBinders.add(this);
-                ctx.Fetcher.DanmakuHandlers.add(this);
-                ctx.Fetcher.StatusBinders.add(this);
-                ctx.Plugins.ForEach(plugin => {
+                    if((loader = mgr.generateLoader()) != null) {
+                        this.restoreFrom(loader.BaseContext.AppLocalData.getAppSettings());
+                    }
+                }, wayErrorTips);
+                this.IsCoreLoaded = loader != null;
+                //Init core context
+                if (IsCoreLoaded) {
+                    onCoreLoaded?.Invoke(true);
                     runSafely(() => {
-                        plugin.onInitialize(ctx.AppLocalData.getAppSettings());
-                        ctx.Fetcher.Logger.log(Level.Info, $"{plugin.GetType().Name} Loaded.");
+                        ctx = loader.create(this);
+                    }, wayErrorTips);
+                }
+                if (ctx != null) {
+                    //Register handlers of this to fetcher
+                    ctx.Fetcher.Logger.LogHandlers.add(this);
+                    ctx.Fetcher.LiveProgressBinders.add(this);
+                    ctx.Fetcher.DanmakuHandlers.add(this);
+                    ctx.Fetcher.StatusBinders.add(this);
+                    ctx.Plugins.ForEach(plugin => {
+                        runSafely(() => {
+                            plugin.onInitialize(ctx.AppLocalData.getAppSettings());
+                            ctx.Fetcher.Logger.log(Level.Info, $"{plugin.GetType().Name} Loaded.");
+                        });
+                        runSafely(() => {
+                            plugin.onAttach(ctx);
+                            ctx.Fetcher.Logger.log(Level.Info, $"{plugin.GetType().Name} Attach.");
+                        });
                     });
-                    runSafely(() => {
-                        plugin.onAttach(ctx);
-                        ctx.Fetcher.Logger.log(Level.Info, $"{plugin.GetType().Name} Attach.");
-                    });
-                });
+                }
+                isLoading = false;
+                return ctx != null;
             });
         }
 
@@ -208,8 +219,7 @@
         //--------------- IDanmakuResolver -------------
         //----------------------------------------------
         public override void onLiveStatusUpdate(bool isOn) {
-            //TODO 
-            //LiveStatusText = isOn ? Constant.LiveOnText : Constant.LiveOffText;
+            IsLiveOn = isOn;
         }
 
         public override void onHotUpdateByDanmaku(long popularity) {

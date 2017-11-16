@@ -74,7 +74,7 @@ namespace LiveRoku.Test {
             fetcher.Logger.log (Level.Info, "Hot updated ..... " + onlineCount);
         }
 
-        public void onLog (Level level, string message) {
+        public override void onLog (Level level, string message) {
             Debug.WriteLine (message, level.ToString ());
         }
 
@@ -127,8 +127,22 @@ namespace LiveRoku.Test {
             //Choose room id
             var roomIds = new string[] { "5441", "469", "439", "305", "102", "183", "118", "501", "379", "131", "413" };
             var testOneId = roomIds[new Random ().Next (roomIds.Length - 1)];
+            var bridge = new CoreBridge();
+            bridge.setupContext(isCoreLoaded => {
+                Console.WriteLine("Load core context.");
+            }, e => {
+                Console.WriteLine("Load context make a exception. " + e.ToString());
+            }).Wait();
+            if (bridge.IsCoreLoaded) {
+                bridge.switchStartAndStop();
+                //Waitting for exit
+                ConsoleKeyInfo press;
+                while ((press = Console.ReadKey()).Key != ConsoleKey.Escape) { }
+                bridge.switchStartAndStop();
+                bridge.detachAndSave();
+            }
             //Make argHost
-            Program argsHost = null;
+            /*Program argsHost = null;
 
             var sw = new Stopwatch ();
             sw.Start ();
@@ -181,7 +195,7 @@ namespace LiveRoku.Test {
             Debug.WriteLine ($"Detach plugins used {sw.ElapsedMilliseconds}");
             sw.Restart ();
             ctx.saveAppData ();
-            Debug.WriteLine ($"Save settings used {sw.ElapsedMilliseconds}");
+            Debug.WriteLine ($"Save settings used {sw.ElapsedMilliseconds}");*/
         }
     }
 

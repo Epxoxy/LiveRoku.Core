@@ -53,13 +53,13 @@
     <Compile Include="CoreBridge.cs" />
     <Compile Include="LoadManager.cs" />
     <Compile Include="helpers\FileHelper.cs" />
-    <Compile Include="basic\LoadContextBase.cs" />
-    <Compile Include="basic\ContextLoadConfig.cs" />
+    <Compile Include="basic\ModuleContextBase.cs" />
+    <Compile Include="basic\AppLocalData.cs" />
     <Compile Include="basic\PluginConfig.cs" />
     <Compile Include="helpers\NonPublicPropertiesContractResolver.cs" />
     <Compile Include="helpers\PluginExtension.cs" />
-    <Compile Include="basic\SettingsSection.cs" />
-    <Compile Include="basic\LoadContext.cs" />
+    <Compile Include="basic\SettingSection.cs" />
+    <Compile Include="basic\ModuleContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
