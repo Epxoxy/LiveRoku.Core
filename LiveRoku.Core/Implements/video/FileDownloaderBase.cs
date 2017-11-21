@@ -1,11 +1,11 @@
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Download {
     using System;
     using System.ComponentModel;
     using System.IO;
     using System.Net;
     using System.Threading.Tasks;
 
-    internal abstract class FileDownloaderBase {
+    internal abstract class FileDownloaderBase : IDisposable {
         public bool IsRunning { get; private set; }
         public bool IsBusy => client?.IsBusy == true;
 
@@ -83,5 +83,17 @@ namespace LiveRoku.Core {
         protected virtual void onDownloadEnded() { }
         protected abstract void onProgressUpdate (DownloadProgressChangedEventArgs e);
         protected abstract void initClient (WebClient client);
+
+        ~FileDownloaderBase() {
+            Dispose(false);
+        }
+
+        public void Dispose() {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            client?.Dispose();
+        }
     }
 }

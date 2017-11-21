@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Danmaku.Codec {
     using System;
     using System.Collections.Generic;
     using System.Linq;

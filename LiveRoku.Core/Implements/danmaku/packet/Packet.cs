@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Danmaku.Codec {
     public class PacketMsgType {
         public const int Heartbeat = 2;
         public const int Handshake = 7;

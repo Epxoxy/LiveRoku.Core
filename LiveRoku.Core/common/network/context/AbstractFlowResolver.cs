@@ -1,6 +1,11 @@
 ﻿namespace LiveRoku.Core.Common {
     using System;
     public abstract class AbstractFlowResolver : IFlowResolver {
+
+        ~AbstractFlowResolver() {
+            Dispose(false);
+        }
+
         public virtual void onActive (ITransformContext ctx) {
             ctx.fireConnected ();
         }
@@ -15,6 +20,13 @@
         }
         public virtual void onException (ITransformContext ctx, Exception e) {
             ctx.fireException (e);
+        }
+
+        public void Dispose() {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing) {
         }
     }
 }

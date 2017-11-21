@@ -4,10 +4,10 @@ namespace LiveRoku.Base {
     //All handlers implement base
     public class LiveResolverBase : ILiveResolver{
 
-        public virtual void onPreparing() { }
-        public virtual void onStopped() { }
-        public virtual void onStreaming() { }
-        public virtual void onWaiting() { }
+        public virtual void onPreparing(IContext ctx) { }
+        public virtual void onStopped(IContext ctx) { }
+        public virtual void onStreaming(IContext ctx) { }
+        public virtual void onWaiting(IContext ctx) { }
 
         public virtual void onBitRateUpdate(long bitRate, string bitRateText) { }
         public virtual void onDownloadSizeUpdate(long totalSize, string friendlySize) { }

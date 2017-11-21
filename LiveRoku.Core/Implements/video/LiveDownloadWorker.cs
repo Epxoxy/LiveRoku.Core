@@ -1,7 +1,8 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Download {
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
     using LiveRoku.Core.Models;
+    using LiveRoku.Core.Danmaku;
     using System;
     using System.IO;
     using System.Text;

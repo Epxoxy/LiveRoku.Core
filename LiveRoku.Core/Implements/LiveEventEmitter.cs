@@ -7,7 +7,7 @@
 
     //Event boardcast part
     public partial class LiveFetchController : ILiveFetcher, ILogger {
-        public ILowList<IDownloadProgressBinder> LiveProgressBinders => emitter.progressBinders;
+        public ILowList<IDownloadProgressBinder> DownloadProgressBinders => emitter.progressBinders;
         public ILowList<IStatusBinder> StatusBinders => emitter.statusBinders;
         public ILowList<IDanmakuResolver> DanmakuHandlers => emitter.danmakuHandlers;
         public ILowList<ILogHandler> LogHandlers => emitter.LogHandlers;
@@ -25,7 +25,6 @@
             internal readonly LowList<IStatusBinder> statusBinders = new LowList<IStatusBinder>();
             internal readonly LowList<IDanmakuResolver> danmakuHandlers = new LowList<IDanmakuResolver>();
             private readonly LowList<ILogHandler> logHandlers = new LowList<ILogHandler>();
-            private ILiveFetcher fetcher;
 
             internal void emptyHandlers() {
                 statusBinders.clear();
@@ -87,24 +86,24 @@
                     handler.onDanmakuReceive(danmaku);
                 });
             }
-            public void boardcastPreparing() {
+            public void boardcastPreparing(IContext ctx) {
                 boardcast(statusBinders, binder => {
-                    binder.onPreparing();
+                    binder.onPreparing(ctx);
                 });
             }
-            public void boardcastStreaming() {
+            public void boardcastStreaming(IContext ctx) {
                 boardcast(statusBinders, binder => {
-                    binder.onStreaming();
+                    binder.onStreaming(ctx);
                 });
             }
-            public void boardcastWaiting() {
+            public void boardcastWaiting(IContext ctx) {
                 boardcast(statusBinders, binder => {
-                    binder.onWaiting();
+                    binder.onWaiting(ctx);
                 });
             }
-            public void boardcastStopped() {
+            public void boardcastStopped(IContext ctx) {
                 boardcast(statusBinders, binder => {
-                    binder.onStopped();
+                    binder.onStopped(ctx);
                 });
             }
 

@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="common\helpers\LatestAwaitable.cs" />
+    <Compile Include="Implements\danmaku\handlers\ReconnectHandler.cs" />
     <Compile Include="Implements\StandardHttpClient.cs" />
     <Compile Include="Implements\video\VideoDownloadEntry.cs" />
     <Compile Include="model\IWebApi.cs" />

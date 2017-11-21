@@ -1,4 +1,4 @@
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Danmaku {
     using System;
     using System.Collections.Concurrent;
     using System.Diagnostics.CodeAnalysis;
@@ -7,7 +7,7 @@ namespace LiveRoku.Core {
     using System.Threading;
     using System.Threading.Tasks;
     using LiveRoku.Base;
-    public class DanmakuWriter {
+    public class DanmakuWriter : IDisposable {
         private const string XmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><i>";
         private const string XmlFooter = "</i>";
         public bool IsRunning { get; private set; }
@@ -106,6 +106,18 @@ namespace LiveRoku.Core {
                 }
             }, writting.Token);
         }
+        
+        ~ DanmakuWriter() {
+            Dispose(false);
+        }
 
+        public void Dispose() {
+            Dispose(true);
+            writting?.Dispose();
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            writting?.Dispose();
+        }
     }
 }

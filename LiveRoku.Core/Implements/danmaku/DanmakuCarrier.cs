@@ -1,42 +1,28 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Danmaku {
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
     using LiveRoku.Core.Common;
     using LiveRoku.Core.Models;
     using System;
-    using System.Diagnostics;
-    using System.Threading;
-    using System.Threading.Tasks;
 
     internal class DanmakuCarrier {
         public bool IsChannelActive => transform?.isActive() == true;
         public bool? IsLiveOn { get; private set; }
         public Action<MsgTypeEnum> LiveCommandRecv { get; set; }
         public Action<DanmakuModel> PretreatDanmaku { get; set; }
+        public Action InactiveTotally { get; set; }
         //private readonly
         private readonly ILogger logger;
         private readonly IWebApi accessApi; //API access
         private readonly EventSubmitHandler emitter;
         private readonly IDanmakuResolver resolver;
-        private readonly ReconnectArgs reconnect = new ReconnectArgs ();
         private readonly object keepOneTransform = new object ();
         //private
-        private CancellationTokenSource timeoutCts;
-        private CancellationTokenSource delayCts;
         private NetResolverLite transform;
+        private ReconnectHandler reconnector;
         private string realRoomId;
         private bool isEnabled;
-        private class ReconnectArgs {
-            public long DelayReconnectMs { get; set; } = 500;
-            public int RetryTimes { get; set; }
-            public int MaxRetryTimes { get; set; } = 10;
-            public bool canRetry () => RetryTimes < MaxRetryTimes;
-            public void reset () {
-                DelayReconnectMs = 500;
-                RetryTimes = 0;
-            }
-        }
-
+        
         public DanmakuCarrier (IWebApi accessApi, IDanmakuResolver resolver, ILogger logger) {
             this.logger = logger;
             this.accessApi = accessApi;
@@ -53,7 +39,6 @@
 
         public void resetState () {
             IsLiveOn = default(bool?);
-            reconnect.reset ();
             if (IsChannelActive) {
                 disconnect ();
             }
@@ -70,18 +55,13 @@
         public void disconnect () {
             this.isEnabled = false;
             //close connection
+            reconnector?.doNotReconnect();
             if (transform != null) {
                 var temp = transform;
                 transform = null;
                 temp.close();
-                temp.Resolvers.clear();
+                temp.Dispose();
                 temp = null;
-            }
-            if (timeoutCts?.Token.CanBeCanceled == true) {
-                timeoutCts.Cancel();
-            }
-            if (delayCts?.Token.CanBeCanceled == true) {
-                delayCts.Cancel();
             }
         }
 
@@ -89,94 +69,49 @@
             this.isEnabled = true;
             this.realRoomId = realRoomId;
             if (!IsChannelActive) {
-                connectByApiAsync (accessApi, realRoomId);
+                if (accessApi.tryGetValidDmServerBean(realRoomId.ToString(), out ServerData sd)) {
+                    connectByServerBeanAsync(sd, realRoomId);
+                } else {
+                    logger.log(Level.Error, "Cannot get valid server address and port.");
+                }
             }
         }
-
-        private bool connectByApiAsync (IWebApi biliApi, string realRoomId) {
-            if (biliApi.tryGetValidDmServerBean (realRoomId.ToString (), out ServerData sd)) {
-                logger.log (Level.Info, "Trying to connect to danmaku server.");
-                activeTransformAsync (sd.Host, sd.Port, realRoomId);
-                return true;
-            } else {
-                logger.log (Level.Error, "Cannot get valid server address and port.");
-                return false;
-            }
-        }
-
-        private bool activeTransformAsync (String host, int port, string realRoomId) {
+        
+        private bool connectByServerBeanAsync(ServerData sd, string realRoomId) {
+            logger.log(Level.Info, "Trying to connect to danmaku server.");
             lock (keepOneTransform) {
-                if (!isEnabled || IsChannelActive) return false;
+                if (!isEnabled || IsChannelActive)
+                    return false;
                 //............
-                transform?.Resolvers.clear ();
-                transform = new NetResolverLite ();
-                transform.Resolvers.addLast (new KeepAliveHandler (realRoomId));
-                transform.Resolvers.addLast (new UnpackHandler ());
-                transform.Resolvers.addLast (emitter);
-                transform.connectAsync (host, port);
+                reconnector = null;
+                transform?.Dispose();
+                transform = new NetResolverLite();
+                transform.Resolvers.addLast(new KeepAliveHandler(realRoomId));
+                transform.Resolvers.addLast(new UnpackHandler());
+                transform.Resolvers.addLast(emitter);
+                transform.Resolvers.addLast((reconnector = new ReconnectHandler {
+                    //FlowResolver fire in other thread
+                    HowToReconnect = () => connectByServerBeanAsync(sd, realRoomId),
+                    InactiveTotally = this.InactiveTotally
+                }));
+                transform.connectAsync(sd.Host, sd.Port);
             }
             resolver.onDanmakuConnecting();
             return true;
         }
-        
+
         private void onActive () {
             logger.log (Level.Info, "Connect to danmaku server ok.");
-            reconnect.reset ();
             resolver.onDanmakuActive();
         }
 
         private void onInactive(Exception e) {
-            resolver.onDanmakuInactive();
-            reconnectIfError(e);
-        }
-
-        private async void reconnectIfError(Exception e) {
-            //TODO something here
             if (e != null) {
                 logger.log(Level.Error, e.Message);
             }
-            if (timeoutCts?.Token.CanBeCanceled == true) {
-                timeoutCts.Cancel();
-            }
-            if (delayCts?.Token.CanBeCanceled == true) {
-                delayCts.Cancel();
-            }
-            if (!isEnabled) { //donnot reconnect when download stopped.
-                return;
-            }
-            if (!reconnect.canRetry()) {
-                logger.log(Level.Error, "Retry time more than the max.");
-                return;
-            }
-            //set cancellation and start task.
-            bool connectionOK = false;
-            long used = 3000;
-            timeoutCts = new CancellationTokenSource(3000);
-            Task.Run(() => {
-                var sw = Stopwatch.StartNew();
-                connectionOK = SharedHelper.checkCanConnect("live.bilibili.com");
-                sw.Stop();
-                used = sw.ElapsedMilliseconds;
-            }, timeoutCts.Token).Wait();
-            delayCts = new CancellationTokenSource();
-            var delay = reconnect.DelayReconnectMs - used;
-            if (delay > 0) {
-                logger.log(Level.Info, $"Trying to reconnect to danmaku server after {(delay) / (double)1000}s");
-                try {
-                    await Task.Delay(TimeSpan.FromMilliseconds(delay), delayCts.Token);
-                }catch{
-                    logger.log(Level.Info, $"Delay exception occurred");
-                    return;
-                }
-            } else logger.log(Level.Info, "Trying to reconnect to danmaku server.");
-            if (!isEnabled)
-                return;
-            //increase delay
-            reconnect.DelayReconnectMs += (connectionOK ? 1000 : reconnect.RetryTimes * 2000);
-            reconnect.RetryTimes++;
-            connectByApiAsync(accessApi, realRoomId);
+            resolver.onDanmakuInactive();
         }
-
+        
         private void emitDanmaku (DanmakuModel danmaku) {
             if (!isEnabled /*May not come here*/ ) return;
             findLiveCommandFrom (danmaku);

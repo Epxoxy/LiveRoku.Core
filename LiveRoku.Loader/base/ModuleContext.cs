@@ -5,9 +5,11 @@
     using LiveRoku.Base.Plugin;
     using LiveRoku.Loader.Helper;
 
-    public class ModuleContext : ModuleContextBase, IPluginHost {
+    public class ModuleContext : ModuleContextBase, IContext {
         public List<IPlugin> Plugins { get; internal set; }
         public ILiveFetcher Fetcher { get; internal set; }
+        public IPreferences Preferences { get; internal set; }
+        public ISettingsBase RuntimeExtra => Fetcher.RuntimeExtra;
 
         public ModuleContext (string dataDir, string appDataFileName) : base (dataDir, appDataFileName) { }
 

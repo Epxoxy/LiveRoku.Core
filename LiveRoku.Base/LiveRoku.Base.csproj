@@ -48,6 +48,7 @@
     <Compile Include="fetcher\handler\baseImpl\DownloadProgressBinderBase.cs" />
     <Compile Include="fetcher\handler\baseImpl\StatusBinderBase.cs" />
     <Compile Include="fetcher\handler\IDownloadProgressBinder.cs" />
+    <Compile Include="fetcher\IContext.cs" />
     <Compile Include="model\IMission.cs" />
     <Compile Include="logger\ILogHandler.cs" />
     <Compile Include="logger\ILogger.cs" />
@@ -67,7 +68,6 @@
     <Compile Include="model\GiftRank.cs" />
     <Compile Include="model\IRoomInfo.cs" />
     <Compile Include="plugin\IPluginDescriptor.cs" />
-    <Compile Include="plugin\IPluginHost.cs" />
     <Compile Include="plugin\PluginDescriptor.cs" />
     <Compile Include="plugin\attribute\PluginSettingAttribute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

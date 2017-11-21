@@ -1,6 +1,7 @@
-﻿namespace LiveRoku.Core {
-    using System;
+﻿namespace LiveRoku.Core.Danmaku {
     using LiveRoku.Core.Common;
+    using LiveRoku.Core.Danmaku.Codec;
+    using System;
     public class EventSubmitHandler : AbstractFlowResolver {
         public Action Active;
         public Action<Exception> InActive;

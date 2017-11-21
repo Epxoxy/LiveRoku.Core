@@ -3,10 +3,14 @@ namespace LiveRoku.Core {
     using LiveRoku.Base.Logger;
     using LiveRoku.Core.Common;
     using LiveRoku.Core.Models;
+    using LiveRoku.Core.Api;
+    using LiveRoku.Core.Danmaku;
+    using LiveRoku.Core.Download;
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
+
     public class PreferencesLite {
         public string Folder { get; set; }
         public string FileNameFormat { get; set; }
@@ -15,8 +19,10 @@ namespace LiveRoku.Core {
         public bool VideoRequire { get; set; }
     }
     [SuppressMessage ("Microsoft.Performance", "CS4014")]
-    public partial class LiveFetchController : IDisposable {
-        public ISettingsBase Extra => extra;
+    public partial class LiveFetchController : IContext, IDisposable {
+        public ILiveFetcher Fetcher => this;
+        public IPreferences Preferences => this.pref;
+        public ISettingsBase RuntimeExtra => extra;
         public bool IsRunning { get; private set; }//Value of if it's start download
         public bool? IsLiveOn => dmCarrier.IsLiveOn;//The live status
         public bool IsStreaming => actor.IsStreaming;//Result of it's downloading or not
@@ -50,26 +56,16 @@ namespace LiveRoku.Core {
             //.............
             this.dmCarrier = new DanmakuCarrier(rootAccessApi, emitter, this) {
                 LiveCommandRecv = type => actor.onLiveCommand(type, prefCopy, dataApi),
-                PretreatDanmaku = dm => actor.onDanmaku(dm)
+                PretreatDanmaku = dm => actor.onDanmaku(dm),
+                InactiveTotally = checkIsNeedToGoToStop
             };
             this.emptyActor = new EmptyDownloadActor();
             this.dloadActor = new VideoDownloadActor(new LiveDownloadWorker(this, userAgent) {
-                BitRateUpdated = bitRate => emitter.boardcastBitRateUpdate(bitRate, $"{bitRate / 1000} Kbps"),
-                DurationUpdated = duration => emitter.boardcastDurationUpdate(duration, SharedHelper.getFriendlyTime(duration)),
-                DownloadSizeUpdated = totalBytes => emitter.boardcastDownloadSizeUpdate(totalBytes, totalBytes.ToFileSize()),
-                MissionCompleted = mission => {
-                    emitter.boardcastMissionComplete(mission);
-                    if (IsRunning/* to back to waiting status*/) {
-                        emitter.boardcastWaiting();
-                    }
-                },
-                Streaming = () => /* ensure carrier working*/ {
-                    mgr.runOnlyOne("ensure-carrier", () => {
-                        //IsChannelActive will check in method implement
-                        dmCarrier.connectAsync(dataApi.RealRoomId);
-                    });
-                    emitter.boardcastStreaming();
-                }
+                BitRateUpdated = br => emitter.boardcastBitRateUpdate(br, $"{br / 1000} Kbps"),
+                DurationUpdated = d => emitter.boardcastDurationUpdate(d, SharedHelper.getFriendlyTime(d)),
+                DownloadSizeUpdated = size => emitter.boardcastDownloadSizeUpdate(size, size.ToFileSize()),
+                MissionCompleted = toWaitingOrStopAndBoardcastMission,
+                Streaming = activeDmCarrierAndBoardcastStreaming
             }, isWorkModeAndLiveOn, requestTimeout, mgr, Logger);
             this.actor = this.emptyActor;
         }
@@ -77,10 +73,18 @@ namespace LiveRoku.Core {
         public LiveFetchController (IPreferences basicArgs):
             this (basicArgs, 20000) { }
 
+        ~ LiveFetchController() {
+            Dispose(false);
+        }
+
         public void Dispose () {
-            stop ();
-            dmCarrier.purgeEvents ();
-            emitter.emptyHandlers ();
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            stop();
+            dmCarrier.purgeEvents();
+            emitter.emptyHandlers();
         }
 
         //-----------------------
@@ -123,9 +127,12 @@ namespace LiveRoku.Core {
             //Basic parameters check
             //Get running parameters
             var roomIdText = pref.ShortRoomId;
-            if (!int.TryParse (roomIdText, out int roomId) || roomId <= 0) {
-                Logger.log (Level.Error, "Wrong id.");
-                stop ();
+            if (!int.TryParse(roomIdText, out int roomId) || roomId <= 0) {
+                Logger.log(Level.Error, "Wrong id.");
+                stop();
+            } else if (string.IsNullOrEmpty(pref.StoreFolder) || string.IsNullOrEmpty(pref.StoreFileNameFormat)) {
+                Logger.log(Level.Error, "Store location not valid.");
+                stop();
             } else {
                 //Copy parameters
                 prefCopy.Folder = pref.StoreFolder;
@@ -137,11 +144,13 @@ namespace LiveRoku.Core {
                 dataApi.resetShortId(roomIdText);
                 dataApi.IsShortIdTheRealId = pref.IsShortIdTheRealId;
                 //Preparing signal
-                this.Extra.put("video-require", prefCopy.VideoRequire);
-                emitter.boardcastPreparing();
+                this.RuntimeExtra.put("video-require", prefCopy.VideoRequire);
+                this.RuntimeExtra.put("store-folder", prefCopy.Folder);
+                emitter.boardcastPreparing(this);
                 prepareDownload();
             }
         }
+
 
         //Re-get roominfo and raise event
         private IRoomInfo refreshRoomInfo() {
@@ -163,7 +172,7 @@ namespace LiveRoku.Core {
                 dmCarrier.disconnect ();
                 actor.stopAsync(force);
                 Logger.log(Level.Info, "Fetch stopped.");
-                emitter.boardcastStopped ();
+                emitter.boardcastStopped (this);
             }
         }
 
@@ -187,7 +196,7 @@ namespace LiveRoku.Core {
                             refreshRoomInfo();
                         });
                         //All parameters ready
-                        emitter.boardcastWaiting();
+                        emitter.boardcastWaiting(this);
                         dmCarrier.connectAsync(dataApi.RealRoomId);
                         actor.onCallDownload(prefCopy, dataApi/*will test video require*/);
                     } else {
@@ -197,6 +206,36 @@ namespace LiveRoku.Core {
                 });
             });
         }
+        
+        //Check status and boardcast mission complete event
+        private void toWaitingOrStopAndBoardcastMission(IMission mission) {
+            string debugInfo = mission == null ? string.Empty : $"from {mission.BeginTime}, to {mission.EndTime}, size: {mission?.RecordSize}";
+            Debug.WriteLine("Mission complete. "+ debugInfo, "emitter");
+            emitter.boardcastMissionComplete(mission);
+            if (IsRunning/* to back to waiting status*/) {
+                if (dmCarrier.IsChannelActive) {
+                    emitter.boardcastWaiting(this);
+                } else {
+                    checkIsNeedToGoToStop();
+                }
+            }
+        }
+
+        private void activeDmCarrierAndBoardcastStreaming() {
+            emitter.boardcastStreaming(this);
+            mgr.runOnlyOne("ensure-carrier", () => {
+                //Ensure carrier working
+                //IsChannelActive will check in method implement
+                dmCarrier.connectAsync(dataApi.RealRoomId);
+            });
+        }
+        
+        private void checkIsNeedToGoToStop() {
+            if(IsRunning && !dmCarrier.IsChannelActive && !IsStreaming) {
+                stop();
+            }
+        }
+
 
         //--------------------
         //--- Help method ----

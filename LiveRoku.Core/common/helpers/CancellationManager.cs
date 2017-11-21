@@ -22,9 +22,10 @@
 
         public void cancelAll () {
             lock (lockHelper) {
-                foreach (var key in ctsTemp.Keys) {
-                    cancel (key);
+                foreach (var value in ctsTemp.Values) {
+                    cancel(value);
                 }
+                ctsTemp.Clear();
             }
         }
 
@@ -42,21 +43,23 @@
             }
         }
 
-        public void cancel (string key) {
+        public void cancelAndRemove (string key) {
             CancellationTokenSource exist = null;
             if (ctsTemp.TryGetValue (key, out exist)) {
                 System.Diagnostics.Debug.WriteLine ("try cancel " + key, "cancelMgr");
+                ctsTemp.Remove(key);
                 cancel (exist);
             }
         }
+
         private void cancel (CancellationTokenSource cts) {
-            if (cts?.Token.CanBeCanceled == true) {
-                try {
-                    cts.Cancel ();
+            try {
+                if (cts?.Token.CanBeCanceled == true) {
+                    cts.Cancel();
                     cts.Dispose();
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
         
@@ -72,7 +75,7 @@
                 Debug.WriteLine($"Cancel {tokenKey}", "tasks");
                 onCancelled?.Invoke();
             });
-            this.cancel(tokenKey);
+            this.cancelAndRemove(tokenKey);
             this.set(tokenKey, cts);
             return Task.Run(() => {
                 try {
@@ -96,7 +99,7 @@
                 Debug.WriteLine($"Cancel {tokenKey}", "tasks");
                 onCancelled?.Invoke();
             });
-            this.cancel(tokenKey);
+            this.cancelAndRemove(tokenKey);
             this.set(tokenKey, cts);
             return Task.Run(() => {
                 try {

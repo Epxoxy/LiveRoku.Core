@@ -6,6 +6,7 @@
         }
 
         public static bool checkCanConnect (string hostNameOrAddress) {
+            //TODO support timeout
             try {
                 System.Net.Dns.GetHostEntry (hostNameOrAddress);
                 return true;

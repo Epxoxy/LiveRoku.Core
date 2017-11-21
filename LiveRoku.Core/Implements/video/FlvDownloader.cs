@@ -1,4 +1,4 @@
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Download {
     using System;
     using System.Net;
     using System.Threading.Tasks;

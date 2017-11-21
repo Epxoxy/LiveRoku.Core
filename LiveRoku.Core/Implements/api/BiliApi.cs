@@ -1,4 +1,4 @@
-namespace LiveRoku.Core {
+namespace LiveRoku.Core.Api {
     using System;
     using System.Xml.Linq;
     using LiveRoku.Base;
@@ -7,6 +7,8 @@ namespace LiveRoku.Core {
     using LiveRoku.Core.Models;
     using System.Diagnostics;
     using System.Text;
+    using System.Globalization;
+
     public class BiliApi : IWebApi {
 
         public static class Const {
@@ -158,7 +160,7 @@ namespace LiveRoku.Core {
                 jsonText = client.GetStringAsyncUsing(apiUrl).Result;
             } catch (Exception e) {
                 logger.log(Level.Error, "Fail sending analysis request : " + e.Message);
-                throw e;
+                throw;
             }
 
             //Analyzing xml
@@ -178,14 +180,26 @@ namespace LiveRoku.Core {
             } catch (Exception e) {
                 e.printStackTrace("biliApi");
                 logger.log(Level.Error, "Analyzing JSON fail : " + e.Message);
-                throw e;
+                throw;
             }
             return realUrl;
         }
 
+        private LiveStatus getStatusByCode(int statusCode) {
+            switch (statusCode) {
+                case 0:
+                    return LiveStatus.Preparing;
+                case 1:
+                    return LiveStatus.Live;
+                case 2:
+                    return LiveStatus.Round;
+            }
+            return LiveStatus.Preparing;
+        }
+
         //TODO complete
         public IRoomInfo getRoomInfo(string realRoomId) {
-            string url = $"https://live.bilibili.com/live/getInfo?roomid={realRoomId}";
+            string url = $"http://api.live.bilibili.com/room/v1/Room/get_info?room_id={realRoomId}&from=room";
             string infoJson = null;
             try {
                 infoJson = client.GetStringAsyncUsing(url).Result;
@@ -196,23 +210,32 @@ namespace LiveRoku.Core {
                 return null;
             try {
                 var data = JObject.Parse(infoJson)["data"];
-                Debug.WriteLine("RoomInfo: " + infoJson, "biliApi");
+                //Debug.WriteLine("RoomInfo: " + infoJson, "biliApi");
                 //logger.log(Level.Info, infoJson);
                 if (data != null && data.Type != JTokenType.Null && data.Type != JTokenType.Undefined &&
                     data.HasValues) {
-                    string statusText = data.Value<string>("_status");
-                    string liveStatusText = data.Value<string>("LIVE_STATUS");
-                    string title = data.Value<string>("ROOMTITLE");
-
-                    Enum.TryParse(liveStatusText, true, out LiveStatus status);
+                    //LiveCode 0->live off, 1->live on, 2->round
+                    var statusCode = data.Value<int>("live_status");
+                    var title = data.Value<string>("title");
+                    var liveTime = data.Value<string>("live_time");
+                    //string statusText = data.Value<string>("_status");
+                    //string liveStatusText = data.Value<string>("LIVE_STATUS");
+                    //string title = data.Value<string>("ROOMTITLE");
                     var detail = new RoomInfo(infoJson) {
-                        IsOn = "on".Equals(statusText.ToLower()),
-                        LiveStatus = status,
+                        IsOn = statusCode == 1,
+                        LiveStatus = getStatusByCode(statusCode),
                         Title = title,
-                        TimeLine = data.Value<int>("LIVE_TIMELINE"),
-                        Anchor = data.Value<string>("ANCHOR_NICK_NAME")
+                        //TimeLine = data.Value<int>("LIVE_TIMELINE"),
+                        //Anchor = data.Value<string>("ANCHOR_NICK_NAME")
                     };
-                    Debug.WriteLine($"LiveStatus {liveStatusText}, _status {statusText} ", "biliApi");
+                    try {//get live start time
+                        detail.TimeLine = (int)Convert.ToDateTime(liveTime, new DateTimeFormatInfo {
+                            FullDateTimePattern = "yyyy-MM-dd hh:mm:ss"
+                        }).totalMsToGreenTime();
+                    } catch(Exception e) {
+                        Debug.WriteLine($"Error coverting datetime {liveTime} : {e.Message} ", "biliApi");
+                    }
+                    Debug.WriteLine($"LiveStatus {detail.LiveStatus}, StatusCode {statusCode} ", "biliApi");
                     Debug.WriteLine($"RoomTitle {title}", "biliApi");
                     return detail;
                 }

@@ -1,5 +1,6 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Danmaku {
     using LiveRoku.Core.Common;
+    using LiveRoku.Core.Danmaku.Codec;
     using System.Threading.Tasks;
     public class UnpackHandler : AbstractFlowResolver {
         private PacketDecoder decoder = new PacketDecoder();

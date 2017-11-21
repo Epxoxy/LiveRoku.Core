@@ -3,10 +3,10 @@ namespace LiveRoku.Base {
     //To implements ILiveFetcher must have a default constructor as
     //public Constructor (IRequestModel model, string userAgent, int requestTimeout);
     public interface ILiveFetcher : IDisposable {
-        ILowList<IDownloadProgressBinder> LiveProgressBinders { get; }
+        ILowList<IDownloadProgressBinder> DownloadProgressBinders { get; }
         ILowList<IStatusBinder> StatusBinders { get; }
         ILowList<IDanmakuResolver> DanmakuHandlers { get; }
-        ISettingsBase Extra { get; }
+        ISettingsBase RuntimeExtra { get; }
         Logger.ILogger Logger { get; }
         bool IsStreaming { get; }
         bool IsRunning { get; }

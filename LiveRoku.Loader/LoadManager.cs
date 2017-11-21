@@ -35,11 +35,21 @@
             AppDomain.CurrentDomain.AssemblyLoad += cacheAssembly;
         }
 
-        public void Dispose () {
-            AppDomain.CurrentDomain.AssemblyResolve -= findCache;
-            AppDomain.CurrentDomain.AssemblyLoad -= cacheAssembly;
+        ~ LoadManager() {
+            Dispose(false);
         }
-        
+
+        public void Dispose () {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            if (disposing) {
+                AppDomain.CurrentDomain.AssemblyResolve -= findCache;
+                AppDomain.CurrentDomain.AssemblyLoad -= cacheAssembly;
+            }
+        }
+
         public ModuleContextLoader generateLoader(bool reload = false) {
             if (globalBaseCtx == null || reload) {
                 globalBaseCtx = reloadCtxBase();
@@ -238,6 +248,7 @@
             }
             return new ModuleContext(dataDir, appDataFileName) {
                 Fetcher = instance as ILiveFetcher,
+                Preferences = pref,
                 Plugins = plugins,
                 AppLocalData = baseCtx.AppLocalData,
                 CoreType = baseCtx.CoreType,

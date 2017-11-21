@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Danmaku.Codec {
     using LiveRoku.Core.Common;
     internal class PacketDecoder {
         public object decode(ByteBuffer input) {

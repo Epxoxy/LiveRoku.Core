@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Api {
     using System.Diagnostics;
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;

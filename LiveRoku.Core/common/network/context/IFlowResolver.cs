@@ -9,7 +9,7 @@
             return new FlowArgs ();
         }
     }
-    public interface IFlowResolver {
+    public interface IFlowResolver : System.IDisposable {
         void onActive (ITransformContext ctx);
         void onReadReady (ITransformContext ctx, object data);
         void onRead (ITransformContext ctx, object data);

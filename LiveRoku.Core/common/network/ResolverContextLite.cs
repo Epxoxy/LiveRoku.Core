@@ -3,7 +3,7 @@
     using System.Diagnostics;
     using System.Net.Sockets;
     using System.Threading.Tasks;
-    public class NetResolverLite : ITransform {
+    public class NetResolverLite : ITransform, IDisposable {
         private bool isAlive = false;
         private TcpClient client;
         private NetworkStream stream;
@@ -13,6 +13,19 @@
 
         public NetResolverLite () {
             ctx = new HeadNodeContextLite (this);
+        }
+
+        ~NetResolverLite() {
+            Dispose(false);
+        }
+
+        public void Dispose() {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            client?.Close();
+            ctx?.clear();
         }
 
         public Task connectAsync (string host, int port) {
@@ -147,7 +160,14 @@
         }
 
         public void clear () {
+            IWrappedResolver current = this.Next;
+            IWrappedResolver next = this.Next?.Next;
             this.Next = null;
+            while (current != null && next != null) {
+                current.Resolver?.Dispose();
+                current = next;
+                next = current.Next;
+            }
         }
 
         public override void fireConnected () => Task.Run (() => base.fireConnected ());
@@ -155,7 +175,7 @@
         public override void fireReadReady (object data) => Task.Run (() => base.fireReadReady (data));
         public override void fireClosed (object data) => Task.Run (() => base.fireClosed (data));
         public override void fireException (Exception e) => Task.Run (() => base.fireException (e));
-
+        
     }
 
 }

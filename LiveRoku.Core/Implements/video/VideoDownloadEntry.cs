@@ -1,7 +1,8 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Download {
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
     using LiveRoku.Core.Common;
+    using LiveRoku.Core.Api;
     using System;
     using System.Diagnostics;
     using System.Threading;
@@ -67,7 +68,7 @@
                 return;
             if (type == MsgTypeEnum.LiveEnd) {
                 reinvoke.release();
-                cancelMgr.cancel(nameof(confirmDownloadWorker));
+                cancelMgr.cancelAndRemove(nameof(confirmDownloadWorker));
                 cancelMgr.remove(nameof(confirmDownloadWorker));
                 Debug.WriteLine("Trying to stop downloader because live end.", "tasks");
                 worker.stopAsync(false);

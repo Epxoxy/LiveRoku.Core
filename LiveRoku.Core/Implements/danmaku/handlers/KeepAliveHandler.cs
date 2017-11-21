@@ -1,5 +1,6 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Danmaku {
     using LiveRoku.Core.Common;
+    using LiveRoku.Core.Danmaku.Codec;
     using System;
     using System.Diagnostics.CodeAnalysis;
     using System.Threading;
@@ -11,6 +12,11 @@
 
         public KeepAliveHandler (string channelId) {
             this.channelId = channelId;
+        }
+
+        protected override void Dispose(bool disposing) {
+            base.Dispose(disposing);
+            heartbeatCts?.Dispose();
         }
 
         [SuppressMessage ("Microsoft.Performance", "CS4014")]

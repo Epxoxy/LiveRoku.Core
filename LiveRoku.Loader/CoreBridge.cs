@@ -7,6 +7,7 @@
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Runtime.CompilerServices;
     using System.Text;
@@ -44,7 +45,7 @@
             }
         }
     }
-    
+
     //TODO Implement MVVM
     //TODO Move command from UI's event handlers
     [AddINotifyPropertyChangedInterface]
@@ -78,6 +79,8 @@
         public bool IsContextLoaded => ctx != null;
 
         [DoNotNotify]
+        public ModuleContext Context => ctx;
+        [DoNotNotify]
         private ILiveFetcher Fetcher => ctx?.Fetcher;
         private ModuleContext ctx;
         private LoadManager mgr;
@@ -107,13 +110,13 @@
                 if (ctx != null) {
                     //Register handlers of this to fetcher
                     ctx.Fetcher.Logger.LogHandlers.add(this);
-                    ctx.Fetcher.LiveProgressBinders.add(this);
+                    ctx.Fetcher.DownloadProgressBinders.add(this);
                     ctx.Fetcher.DanmakuHandlers.add(this);
                     ctx.Fetcher.StatusBinders.add(this);
                     ctx.Plugins.ForEach(plugin => {
                         runSafely(() => {
                             plugin.onInitialize(ctx.AppLocalData.getAppSettings());
-                            ctx.Fetcher.Logger.log(Level.Info, $"{plugin.GetType().Name} Loaded.");
+                            //ctx.Fetcher.Logger.log(Level.Info, $"{plugin.GetType().Name} Loaded.");
                         });
                         runSafely(() => {
                             plugin.onAttach(ctx);
@@ -145,9 +148,9 @@
                 return;
             this.ShortRoomId = previous.LatestRoomId;
             this.IsShortIdTheRealId = previous.IsLatestTheRealId;
-            this.StoreFolder = previous.StoreFolder;
-            this.StoreFileNameFormat = previous.StoreFileNameFormat;
-            this.VideoFullPathFormat = System.IO.Path.Combine(StoreFolder, StoreFileNameFormat);
+            this.StoreFolder = previous.StoreFolder ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "download");
+            this.StoreFileNameFormat = previous.StoreFileNameFormat ?? "{roomId}-{Y}-{M}-{d}-{H}-{m}-{s}.flv";
+            this.VideoFullPathFormat = Path.Combine(StoreFolder, StoreFileNameFormat);
             this.LocalDanmakuRequire = previous.LocalDanmakuRequire;
             this.LocalVideoRequire = previous.LocalVideoRequire;
             this.AutoStart = previous.AutoStart;
@@ -156,17 +159,16 @@
 
         //settings operation
         private void storeTo(ISettings settings) {
-            var newPref = new BasicPreferences {
-                StoreFolder = this.StoreFolder,
-                StoreFileNameFormat = this.StoreFileNameFormat,
-                LocalDanmakuRequire = this.LocalDanmakuRequire,
-                LocalVideoRequire = this.LocalVideoRequire,
-                AutoStart = this.AutoStart
-            };
+            LocalPreferences = LocalPreferences ?? new BasicPreferences();
+            LocalPreferences.StoreFolder = this.StoreFolder;
+            LocalPreferences.StoreFileNameFormat = this.StoreFileNameFormat;
+            LocalPreferences.LocalDanmakuRequire = this.LocalDanmakuRequire;
+            LocalPreferences.LocalVideoRequire = this.LocalVideoRequire;
+            LocalPreferences.AutoStart = this.AutoStart;
             if (int.TryParse(ShortRoomId, out int roomId)) {
-                newPref.addLatestRoom(ShortRoomId, IsShortIdTheRealId);
+                LocalPreferences.addLatestRoom(ShortRoomId, IsShortIdTheRealId);
             }
-            settings.put("Prefs", newPref);
+            settings.put("Prefs", LocalPreferences);
         }
 
         public Task updateRoomInfo() {
@@ -200,25 +202,25 @@
         //----------------------------------------------
         //--------------- IStatusBinder ----------------
         //----------------------------------------------
-        public override void onPreparing() {
+        public override void onPreparing(IContext ctx) {
             CurrentState = ProcessState.Preparing;
             IsPreferencesEditable = false;
             IsStateChangeable = false;
         }
 
-        public override void onWaiting() {
+        public override void onWaiting(IContext ctx) {
             CurrentState = ProcessState.Waiting;
             IsPreferencesEditable = false;
             IsStateChangeable = true;
         }
 
-        public override void onStreaming() {
+        public override void onStreaming(IContext ctx) {
             CurrentState = ProcessState.Streaming;
             IsPreferencesEditable = false;
             IsStateChangeable = true;
         }
 
-        public override void onStopped() {
+        public override void onStopped(IContext ctx) {
             CurrentState = ProcessState.Stopped;
             IsPreferencesEditable = true;
             IsStateChangeable = true;
@@ -275,8 +277,7 @@
 
         protected T Get<T>([CallerMemberName] string name = null) {
             Debug.Assert(name != null, "name != null");
-            object value = null;
-            if (properties.TryGetValue(name, out value))
+            if (properties.TryGetValue(name, out object value))
                 return value == null ? default(T) : (T)value;
             return default(T);
         }
