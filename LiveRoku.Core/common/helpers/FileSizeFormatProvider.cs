@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core {
+﻿namespace LiveRoku.Core.Common.Helpers {
     using System;
     public class FileSizeFormatProvider : IFormatProvider, ICustomFormatter {
         private const string fileSizeFormat = "fs";

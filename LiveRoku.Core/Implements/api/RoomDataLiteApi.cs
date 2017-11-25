@@ -64,7 +64,7 @@
                 } else return this.RoomInfo;
             }
             this.RoomInfo = accessApi.getRoomInfo(RealRoomId);
-            Logger?.log(Level.Info, $"Fetched RoomInfo, Title {this.RoomInfo?.Title}.");
+            Logger?.log(Level.Info, $"Room[{RealRoomId}] > {this.RoomInfo?.Title}.");
             return this.RoomInfo;
         }
 

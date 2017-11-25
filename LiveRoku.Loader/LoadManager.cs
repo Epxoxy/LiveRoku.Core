@@ -1,14 +1,14 @@
 ﻿namespace LiveRoku.Loader {
+    using LiveRoku.Base;
+    using LiveRoku.Base.Plugin;
+    using LiveRoku.Loader.Helpers;
+    using LiveRoku.Loader.Base;
     using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Reflection;
     using System.Text.RegularExpressions;
-    using LiveRoku.Base;
-    using LiveRoku.Base.Plugin;
-    using LiveRoku.Loader.Helper;
-    using LiveRoku.Loader.Base;
 
     public class LoadManager : IDisposable {
         public string BaseDirectory => baseDir;
@@ -178,25 +178,6 @@
 
     }
 
-    public class Utils {
-        public static T runSafely<T>(Func<T> doWhat) {
-            try {
-                return doWhat.Invoke();
-            } catch (Exception e) {
-                System.Diagnostics.Debug.WriteLine(e.ToString());
-            }
-            return default(T);
-        }
-
-        public static void runSafely(Action doWhat) {
-            try {
-                doWhat.Invoke();
-            } catch (Exception e) {
-                System.Diagnostics.Debug.WriteLine(e.ToString());
-            }
-        }
-    }
-
     public class ModuleContextLoader {
         public ModuleContextBase BaseContext => baseCtx;
         private readonly ModuleContextBase baseCtx;
@@ -257,5 +238,23 @@
         }
 
     }
+    
+    public class Utils {
+        public static T runSafely<T>(Func<T> doWhat) {
+            try {
+                return doWhat.Invoke();
+            } catch (Exception e) {
+                System.Diagnostics.Debug.WriteLine(e.ToString());
+            }
+            return default(T);
+        }
 
+        public static void runSafely(Action doWhat) {
+            try {
+                doWhat.Invoke();
+            } catch (Exception e) {
+                System.Diagnostics.Debug.WriteLine(e.ToString());
+            }
+        }
+    }
 }

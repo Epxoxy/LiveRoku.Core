@@ -1,11 +1,12 @@
 ﻿namespace LiveRoku.Core {
-    internal static class SharedHelper {
+    internal static class GlobalHelper {
+
         public static void printStackTrace(this System.Exception e, string category = null){
             if (e == null) return;
             System.Diagnostics.Debug.WriteLine(e.ToString(), category);
         }
 
-        public static bool checkCanConnect (string hostNameOrAddress) {
+        public static bool canConnectTo (string hostNameOrAddress) {
             //TODO support timeout
             try {
                 System.Net.Dns.GetHostEntry (hostNameOrAddress);
@@ -14,18 +15,11 @@
                 return false;
             }
         }
+
         public static void printOn (this System.Exception e, Base.Logger.ILogger logger) {
             if (e == null) return;
             e.printStackTrace();
             logger.log (Base.Logger.Level.Error, e.Message);
-        }
-
-
-        public static void clear<T> (this System.Collections.Concurrent.ConcurrentBag<T> cb) {
-            T temp = default (T);
-            while (!cb.IsEmpty) {
-                cb.TryTake (out temp);
-            }
         }
 
         public static string getFriendlyTime (long ms) {
@@ -39,12 +33,5 @@
             return (time - new System.DateTime (1970, 1, 1, 0, 0, 0, 0)).TotalMilliseconds;
         }
 
-        public static void put<T1, T2> (this System.Collections.Generic.Dictionary<T1, T2> dict, T1 key, T2 value) {
-            if (dict.ContainsKey (key)) {
-                dict[key] = value;
-            } else {
-                dict.Add (key, value);
-            }
-        }
     }
 }

@@ -3,7 +3,7 @@
     using System.IO;
     using LiveRoku.Base;
     using LiveRoku.Base.Plugin;
-    using LiveRoku.Loader.Helper;
+    using LiveRoku.Loader.Helpers;
 
     public class ModuleContext : ModuleContextBase, IContext {
         public List<IPlugin> Plugins { get; internal set; }

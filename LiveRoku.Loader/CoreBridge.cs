@@ -86,7 +86,7 @@
         private LoadManager mgr;
         private volatile bool isLoading = false;
 
-        public Task<bool> setupContext(Action<bool> onCoreLoaded, Action<Exception> wayErrorTips) {
+        public Task<bool> setupContext(Action<bool> afterTryLoadCore, Action<Exception> wayErrorTips) {
             if (isLoading)
                 return Task.FromResult(false);
             return Task.Run(() => {
@@ -100,9 +100,9 @@
                     }
                 }, wayErrorTips);
                 this.IsCoreLoaded = loader != null;
+                afterTryLoadCore?.Invoke(this.IsCoreLoaded);
                 //Init core context
                 if (IsCoreLoaded) {
-                    onCoreLoaded?.Invoke(true);
                     runSafely(() => {
                         ctx = loader.create(this);
                     }, wayErrorTips);

@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Danmaku {
+﻿namespace LiveRoku.Core.Danmaku.Handlers {
     using LiveRoku.Core.Common;
     using System;
     using System.Timers;
@@ -29,12 +29,14 @@
         }
 
         public override void onInactive(ITransformContext ctx, object data) {
+            System.Diagnostics.Debug.WriteLine($"onInactive", "reconnect");
             timer.Stop();
             if (ReconnectEnabled) {
                 if(attempts < maxAttempts) {
                     attempts++;
                     timer.Interval = (400 << attempts);
                     timer.Start();
+                    System.Diagnostics.Debug.WriteLine($"reconnect-timer-start {400<<attempts}", "reconnect");
                 } else {
                     InactiveTotally?.Invoke();
                 }
@@ -59,6 +61,8 @@
                 //== step.3 === -reconnect
                 //Logger.log(Level.Info, $"Reconnecting to danmaku server");
                 HowToReconnect?.Invoke();
+            } else {
+                InactiveTotally?.Invoke();
             }
         }
 

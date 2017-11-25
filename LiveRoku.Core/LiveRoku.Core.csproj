@@ -58,21 +58,20 @@
     <Compile Include="model\RoomInfo.cs" />
     <Compile Include="Implements\api\RoomDataLiteApi.cs" />
     <Compile Include="common\helpers\CancellationManager.cs" />
-    <Compile Include="common\network\Utils.cs" />
     <Compile Include="Implements\danmaku\handlers\EventSubmitHandler.cs" />
-    <Compile Include="Implements\danmaku\packet\DanmakuFactory.cs" />
+    <Compile Include="Implements\danmaku\codec\DanmakuFactory.cs" />
     <Compile Include="common\unwanted\DynamicBuffer.cs" />
-    <Compile Include="common\unwanted\FileSizeFormatProvider.cs" />
+    <Compile Include="common\helpers\FileSizeFormatProvider.cs" />
     <Compile Include="model\ServerData.cs" />
     <Compile Include="model\VideoInfo.cs" />
     <Compile Include="Implements\danmaku\DanmakuWriter.cs" />
-    <Compile Include="Implements\danmaku\packet\PacketDecoder.cs" />
-    <Compile Include="Implements\danmaku\packet\PacketEncoder.cs" />
+    <Compile Include="Implements\danmaku\codec\PacketDecoder.cs" />
+    <Compile Include="Implements\danmaku\codec\PacketEncoder.cs" />
     <Compile Include="Implements\danmaku\DanmakuCarrier.cs" />
     <Compile Include="Implements\video\FileDownloaderBase.cs" />
     <Compile Include="Implements\video\FlvDownloader.cs" />
     <Compile Include="common\helpers\NetworkWatcherProxy.cs" />
-    <Compile Include="common\SharedHelper.cs" />
+    <Compile Include="GlobalHelper.cs" />
     <Compile Include="Implements\LiveFetchController.cs" />
     <Compile Include="Implements\api\BiliApi.cs" />
     <Compile Include="common\media\MediaInfoDLL.cs" />
@@ -85,15 +84,16 @@
     <Compile Include="common\network\ResolverContextLite.cs" />
     <Compile Include="Implements\danmaku\handlers\KeepAliveHandler.cs" />
     <Compile Include="Implements\danmaku\handlers\UnpackHandler.cs" />
-    <Compile Include="Implements\danmaku\packet\Packet.cs" />
+    <Compile Include="Implements\danmaku\codec\Packet.cs" />
     <Compile Include="Implements\video\LiveDownloadWorker.cs" />
     <Compile Include="model\SimpleMission.cs" />
     <Compile Include="Implements\LiveEventEmitter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="common\documents\getServer.txt" />
-    <Content Include="common\documents\infojson.txt" />
+    <Content Include="Implements\api\docs\getServer.txt" />
+    <Content Include="Implements\api\docs\infojson.txt" />
+    <Content Include="Implements\api\docs\roominfo.txt" />
     <Content Include="common\media\MediaInfo.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

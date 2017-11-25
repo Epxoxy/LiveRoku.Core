@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Loader.Helper {
+﻿namespace LiveRoku.Loader.Helpers {
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;

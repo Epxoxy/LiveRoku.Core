@@ -41,7 +41,7 @@ namespace LiveRoku.Test {
         }
         
         public override void onLog (Level level, string message) {
-            Debug.WriteLine (message, level.ToString ());
+            //Do nothing
         }
 
         public override void onMissionComplete (IMission mission) {
@@ -63,7 +63,7 @@ namespace LiveRoku.Test {
         public override void onDanmakuReceive(DanmakuModel danmaku) {
             if (danmaku == null || danmaku.MsgType != MsgTypeEnum.Comment)
                 return;
-            Debug.WriteLine($"\"{danmaku.UserName}\" : {danmaku.CommentText}");
+            Debug.WriteLine($"\"{danmaku.UserName}\" : {danmaku.CommentText}", "danmaku");
         }
         
         internal class LogDateTimeTraceListener : TextWriterTraceListener {

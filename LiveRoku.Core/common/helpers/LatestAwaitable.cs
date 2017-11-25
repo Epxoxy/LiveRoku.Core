@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Common {
+﻿namespace LiveRoku.Core.Common.Helpers {
     //Await task until unregister manually
     //Always keep the newest request and igore all the early request
     class LatestAwaitable {

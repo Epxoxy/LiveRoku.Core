@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Danmaku {
+﻿namespace LiveRoku.Core.Danmaku.Handlers {
     using LiveRoku.Core.Common;
     using LiveRoku.Core.Danmaku.Codec;
     using System;
@@ -33,12 +33,14 @@
                 await System.Threading.Tasks.Task.Delay(20000);
                 OnMessage?.Invoke(new Base.DanmakuModel { MsgType = Base.MsgTypeEnum.LiveEnd });
             });*/
+            base.onActive(ctx);
         }
 
         public override void onRead (ITransformContext ctx, object data) {
             if (data != null && data is Packet) {
                 checkPacket ((Packet) data);
             }
+            base.onRead(ctx, data);
         }
         
         private void checkPacket (Packet packet) {
@@ -66,11 +68,13 @@
         public override void onInactive (ITransformContext ctx, object data) {
             var error = data == null ? null : data as Exception;
             InActive?.Invoke (error);
+            base.onInactive(ctx, data);
         }
 
         public override void onException (ITransformContext ctx, Exception e) {
             System.Diagnostics.Debug.WriteLine (e.ToString ());
             OnException?.Invoke (e);
+            base.onException(ctx, e);
         }
     }
 }

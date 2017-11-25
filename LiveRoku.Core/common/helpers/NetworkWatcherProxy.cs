@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Common {
+﻿namespace LiveRoku.Core.Common.Helpers {
     using System;
     using System.Net.NetworkInformation;
     public interface INetworkWatcher {

@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Danmaku {
+﻿namespace LiveRoku.Core.Danmaku.Handlers {
     using LiveRoku.Core.Common;
     using LiveRoku.Core.Danmaku.Codec;
     using System;
@@ -22,7 +22,7 @@
         [SuppressMessage ("Microsoft.Performance", "CS4014")]
         public override void onActive (ITransformContext ctx) {
             //Handshake
-            System.Diagnostics.Debug.WriteLine ("Invoke KeepAliveHandler.onConnected(ctx)", "KeepAlive");
+            System.Diagnostics.Debug.WriteLine ("Invoke KeepAliveHandler.onConnected(ctx)", "heartbeat");
             var tmpUid = (long) (1e14 + 2e14 * new Random ().NextDouble ());
             var payload = "{ \"roomid\":" + channelId + ", \"uid\":" + tmpUid + "}";
             var handshake = Packet.packSimple (PacketMsgType.Handshake, payload);
@@ -44,7 +44,7 @@
                 while (ctx.isActive ()) {
                     try {
                         ctx.writeAndFlush (pingBytes);
-                        System.Diagnostics.Debug.WriteLine ("heartbeat...", "KeepAlive");
+                        System.Diagnostics.Debug.WriteLine ("heartbeat sent...", "heartbeat");
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (errorTimes > retryTimes) break;

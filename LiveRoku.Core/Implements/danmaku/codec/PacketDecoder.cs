@@ -11,7 +11,7 @@
             int packetLength = input.readInt();
             int payloadLength = packetLength - 4;
             if (packetLength < Packet.HeaderSize || input.ReadableBytes < payloadLength) {
-                System.Diagnostics.Debug.WriteLine($"--- in.resetReaderIndex() {packetLength}/{input.ReadableBytes}", nameof(decode));
+                System.Diagnostics.Debug.WriteLine($"--- reset reader index, {packetLength}[need]/{input.ReadableBytes}[readable]", nameof(decode));
                 input.resetReaderIndex();
                 return null;
             }

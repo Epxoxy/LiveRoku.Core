@@ -10,6 +10,7 @@
         public INodeFlow Resolvers => ctx;
         private HeadNodeContextLite ctx;
         private object locker = new object ();
+        private int errorTimes = 0;
 
         public NetResolverLite () {
             ctx = new HeadNodeContextLite (this);
@@ -57,12 +58,30 @@
                         while ((readSize = stream.Read (cache, 0, cache.Length)) > 0) {
                             buffer.writeBytes (cache, 0, readSize);
                             Debug.WriteLine ("--- read --- " + readSize, "network");
+                            errorTimes = 0;//reset
                             ctx.fireRead (buffer);
                         }
+                    } catch(System.IO.IOException e) when(e.InnerException != null) {
+                        e.printStackTrace();
+                        ctx.fireException(e);
+                        SocketException se = null;
+                        if ((se = e.InnerException as SocketException) != null) {
+                            //10035 == WSAEWOULDBLOCK
+                            if (se.NativeErrorCode.Equals(10035)) {
+                                Debug.WriteLine("--- still connected.[10035] ---", "network");
+                            } else {
+                                break;
+                            }
+                        }
                     } catch (Exception e) {
-                        Type type = e.GetType();
                         e.printStackTrace();
                         ctx.fireException (e);
+                        if(errorTimes++ > 10) {
+                            Debug.WriteLine("--- errors over 10 ---", "network");
+                            break;
+                        } else if(e is ObjectDisposedException) {
+                            break;
+                        }
                     }
                 }
                 close ();
@@ -71,8 +90,8 @@
             }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
-        private bool isOnline (TcpClient client) {
-            return !((client.Client.Poll (1000, SelectMode.SelectRead) && (client.Client.Available == 0)) || !client.Client.Connected);
+        private bool isOnline (TcpClient tcp) {
+            return !((tcp.Client.Poll (1000, SelectMode.SelectRead) && (tcp.Client.Available == 0)) || !tcp.Client.Connected);
         }
 
         public bool isActive () => isAlive;

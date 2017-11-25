@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Danmaku {
+﻿namespace LiveRoku.Core.Danmaku.Handlers {
     using LiveRoku.Core.Common;
     using LiveRoku.Core.Danmaku.Codec;
     using System.Threading.Tasks;
@@ -30,7 +30,7 @@
                         System.Diagnostics.Debug.WriteLine($"--- {packet}", "decode");
                         Task.Run(() => ctx.fireRead(packet));
                     } else if (cumulation.readerIndex() == oldReaderIndex) {
-                        System.Diagnostics.Debug.WriteLine("--- nothing read", "decode");
+                        System.Diagnostics.Debug.WriteLine("--- decode reset", "decode");
                         break;
                     }
                 }

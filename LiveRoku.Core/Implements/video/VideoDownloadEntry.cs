@@ -1,8 +1,9 @@
 ﻿namespace LiveRoku.Core.Download {
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
-    using LiveRoku.Core.Common;
     using LiveRoku.Core.Api;
+    using LiveRoku.Core.Common;
+    using LiveRoku.Core.Common.Helpers;
     using System;
     using System.Diagnostics;
     using System.Threading;

@@ -1,0 +1,68 @@
+﻿link
+http://api.live.bilibili.com/room/v1/Room/get_info?room_id={realRoomId}&from=room
+
+{
+  "code": 0,
+  "msg": "ok",
+  "message": "ok",
+  "data": {
+    "uid": 13763303,
+    "description": "htmltext",
+    "live_status": 0,
+    "area_id": 27,
+    "parent_area_id": 1,
+    "parent_area_name": "娱乐",
+    "old_area_id": 6,
+    "background": "http://static.hdslb.com/live-static/images/bg/1.jpg",
+    "title": "日本京都大学硕士带你读日文书",
+    "user_cover": "http://i0.hdslb.com/bfs/live/b9cf97dcfc13ffd9eba5b098b122e7399484118b.jpg",
+    "live_time": "0000-00-00 00:00:00",
+    "tags": "户外旅行,海外留学,学习",
+    "is_anchor": 0,
+    "room_silent_type": "",
+    "room_silent_level": 0,
+    "room_silent_second": 0,
+    "area_name": "学习",
+    "pendants": "",
+    "area_pendants": "",
+    "hot_words": [
+      "2333333",
+      "_(:з」∠)_",
+      "喂，妖妖零吗",
+      "红红火火恍恍惚惚",
+      "色情主播",
+      "FFFFFFFFFF",
+      "Yooooooo",
+      "啪啪啪啪啪",
+      "666666666",
+      "老司机带带我",
+      "你为什么这么熟练啊",
+      "gg",
+      "excuse me？",
+      "prprpr",
+      "bilibili-(゜-゜)つロ乾杯~",
+      "向大佬低头",
+      "那你很棒哦！",
+      "请大家注意弹幕礼仪哦！",
+      "gay里gay气",
+      "怕是要修仙哦",
+      "还有这种操作！",
+      "当然是选择原谅她啊！"
+    ],
+    "verify": "",
+    "new_pendants": {
+      "frame": {
+        "type": "frame",
+        "expire_time": 1511798399,
+        "name": "bilitree_harvest",
+        "area": 0,
+        "area_old": 0,
+        "use_old_area": false,
+        "position": 0,
+        "create_time": 1510931354,
+        "priority": 40
+      },
+      "badge": null
+    }
+  }
+}

@@ -228,12 +228,14 @@ namespace LiveRoku.Core.Api {
                         //TimeLine = data.Value<int>("LIVE_TIMELINE"),
                         //Anchor = data.Value<string>("ANCHOR_NICK_NAME")
                     };
-                    try {//get live start time
-                        detail.TimeLine = (int)Convert.ToDateTime(liveTime, new DateTimeFormatInfo {
-                            FullDateTimePattern = "yyyy-MM-dd hh:mm:ss"
-                        }).totalMsToGreenTime();
-                    } catch(Exception e) {
-                        Debug.WriteLine($"Error coverting datetime {liveTime} : {e.Message} ", "biliApi");
+                    if (!liveTime.StartsWith("0000")) {
+                        try {//get live start time
+                            detail.TimeLine = (int)Convert.ToDateTime(liveTime, new DateTimeFormatInfo {
+                                FullDateTimePattern = "yyyy-MM-dd hh:mm:ss"
+                            }).totalMsToGreenTime();
+                        } catch (Exception e) {
+                            Debug.WriteLine($"Error coverting datetime {liveTime} : {e.Message} ", "biliApi");
+                        }
                     }
                     Debug.WriteLine($"LiveStatus {detail.LiveStatus}, StatusCode {statusCode} ", "biliApi");
                     Debug.WriteLine($"RoomTitle {title}", "biliApi");

@@ -1,4 +1,4 @@
-﻿namespace LiveRoku.Core.Common {
+﻿namespace LiveRoku.Core.Common.Helpers {
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -59,7 +59,7 @@
                     cts.Dispose();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                e.printStackTrace("cancel-impl");
             }
         }
         

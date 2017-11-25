@@ -1,11 +1,12 @@
 namespace LiveRoku.Core {
     using LiveRoku.Base;
     using LiveRoku.Base.Logger;
-    using LiveRoku.Core.Common;
     using LiveRoku.Core.Models;
     using LiveRoku.Core.Api;
     using LiveRoku.Core.Danmaku;
     using LiveRoku.Core.Download;
+    using LiveRoku.Core.Common;
+    using LiveRoku.Core.Common.Helpers;
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -62,7 +63,7 @@ namespace LiveRoku.Core {
             this.emptyActor = new EmptyDownloadActor();
             this.dloadActor = new VideoDownloadActor(new LiveDownloadWorker(this, userAgent) {
                 BitRateUpdated = br => emitter.boardcastBitRateUpdate(br, $"{br / 1000} Kbps"),
-                DurationUpdated = d => emitter.boardcastDurationUpdate(d, SharedHelper.getFriendlyTime(d)),
+                DurationUpdated = d => emitter.boardcastDurationUpdate(d, GlobalHelper.getFriendlyTime(d)),
                 DownloadSizeUpdated = size => emitter.boardcastDownloadSizeUpdate(size, size.ToFileSize()),
                 MissionCompleted = toWaitingOrStopAndBoardcastMission,
                 Streaming = activeDmCarrierAndBoardcastStreaming

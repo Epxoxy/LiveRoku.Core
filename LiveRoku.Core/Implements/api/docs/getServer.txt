@@ -1,15 +1,19 @@
-﻿//注：目前xml里存在 server 和 dm_server ，分别是不同的域名
+﻿link
+http://api.live.bilibili.com/api/player?id=cid%3A{realRoomId}&ts=15fdc4f266b&platform=pc&player_type=web
+//注：目前xml里存在 server 和 dm_server ，分别是不同的域名
 //两个域名指向的服务器应该是相同的，测试 788 2243 均开放
 //猜测应该是为了一些兼容。所有弹幕相关参数都有带上“dm_”前缀的趋势
+<html><head></head>
+<body>
 <uid></uid>
 <uname></uname>
 <login></login>
 <isadmin></isadmin>
-<time>1503511561</time>
+<time>1511193600</time>
 <rank></rank>
 <level></level>
 <state>LIVE</state>
-<chatid>1517443</chatid>
+<chatid>35278</chatid>
 <server>livecmt-2.bilibili.com</server>
 <sheid_user></sheid_user>
 <block_time>0</block_time>
@@ -27,6 +31,8 @@
 <dm_wss_port>2245</dm_wss_port>
 <dm_port>2243</dm_port>
 <dm_server>broadcastlv.chat.bilibili.com</dm_server>
-<need_authority>0</need_authority>
-<authority_range>æ—¥æœ¬</authority_range>
+<dm_server_list>118.89.14.103,118.89.14.206,broadcastlv.chat.bilibili.com</dm_server_list>
+<need_authority>1</need_authority>
+<authority_range>日本</authority_range>
 <forbidden>0</forbidden>
+</body></html>
